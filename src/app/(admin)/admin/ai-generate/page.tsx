@@ -31,8 +31,8 @@ export default function AIGeneratePage() {
       } else {
         alert(data.error || 'Generation failed');
       }
-    } catch {
-      alert('Failed to generate. Check your API key.');
+    } catch (err: any) {
+      alert('Failed to generate: ' + (err?.message || 'Unknown error. Check browser console.'));
     } finally {
       setGenerating(false);
     }

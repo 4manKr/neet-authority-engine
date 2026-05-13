@@ -52,8 +52,12 @@ IMPORTANT RULES:
 - Return ONLY valid JSON, no explanation or markdown code fences`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
+      config: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+      },
     });
 
     const responseText = response.text || '';
