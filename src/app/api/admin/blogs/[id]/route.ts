@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       body.publishedAt = new Date();
     }
 
-    const blog = await Blog.findByIdAndUpdate(id, body, { new: true, runValidators: true });
+    const blog = await Blog.findByIdAndUpdate(id, body, { returnDocument: 'after', runValidators: true });
 
     if (!blog) {
       return NextResponse.json({ error: 'Blog not found' }, { status: 404 });

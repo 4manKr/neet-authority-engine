@@ -61,7 +61,7 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
   const blog = await Blog.findOneAndUpdate(
     { slug, status: 'published' },
     { $inc: { viewCount: 1 } },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean();
 
   if (!blog) notFound();
