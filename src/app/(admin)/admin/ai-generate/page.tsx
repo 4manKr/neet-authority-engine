@@ -22,6 +22,16 @@ export default function AIGeneratePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keyword }),
       });
+
+      // Handle non-JSON responses (e.g. Vercel HTML error pages)
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        alert(`Server error (${res.status}): The API returned an unexpected response. Make sure GEMINI_API_KEY is set in Vercel environment variables and redeploy.`);
+        console.error('Non-JSON response:', text);
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success && data.data) {
