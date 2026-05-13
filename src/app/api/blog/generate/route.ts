@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateSlug } from '@/lib/markdown';
 
+export const maxDuration = 60; // Allow up to 60 seconds for AI generation (Vercel Hobby max)
+
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
