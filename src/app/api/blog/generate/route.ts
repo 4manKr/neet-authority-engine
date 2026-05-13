@@ -2,17 +2,22 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateSlug } from '@/lib/markdown';
 
-// Initialize the Google Gen AI client
-const ai = new GoogleGenAI({});
-
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'GEMINI_API_KEY is not configured on the server.' }, { status: 500 });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
     const body = await req.json();
     const { keyword } = body;
 
     if (!keyword) {
       return NextResponse.json({ error: 'keyword is required' }, { status: 400 });
     }
+
 
     const prompt = `You are an expert Medical Admissions Counselor and SEO Content Writer specializing in NEET UG counselling in India.
 
