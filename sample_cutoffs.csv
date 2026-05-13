@@ -1,0 +1,30 @@
+college_name,state,city,ownership,year,category,quota,round,closing_rank,score
+All India Institute of Medical Sciences New Delhi,Delhi,New Delhi,Central,2023,UR,AIQ,1,57,710
+All India Institute of Medical Sciences New Delhi,Delhi,New Delhi,Central,2023,OBC,AIQ,1,255,700
+All India Institute of Medical Sciences New Delhi,Delhi,New Delhi,Central,2023,SC,AIQ,1,989,680
+All India Institute of Medical Sciences New Delhi,Delhi,New Delhi,Central,2023,ST,AIQ,1,1624,670
+All India Institute of Medical Sciences New Delhi,Delhi,New Delhi,Central,2023,EWS,AIQ,1,223,702
+JIPMER Puducherry,Puducherry,Puducherry,Central,2023,UR,AIQ,1,277,698
+JIPMER Puducherry,Puducherry,Puducherry,Central,2023,OBC,AIQ,1,591,690
+Maulana Azad Medical College,Delhi,New Delhi,Govt,2023,UR,AIQ,1,85,705
+Maulana Azad Medical College,Delhi,New Delhi,Govt,2023,OBC,AIQ,1,345,695
+Maulana Azad Medical College,Delhi,New Delhi,Govt,2023,SC,AIQ,1,1200,675
+Vardhman Mahavir Medical College (Safdarjung),Delhi,New Delhi,Govt,2023,UR,AIQ,1,107,701
+Vardhman Mahavir Medical College (Safdarjung),Delhi,New Delhi,Govt,2023,OBC,AIQ,1,412,692
+King George's Medical University,Uttar Pradesh,Lucknow,Govt,2023,UR,AIQ,1,1097,678
+King George's Medical University,Uttar Pradesh,Lucknow,Govt,2023,OBC,AIQ,1,1920,665
+King George's Medical University,Uttar Pradesh,Lucknow,Govt,2023,SC,AIQ,1,18500,605
+Grant Medical College and Sir JJ Group of Hospitals,Maharashtra,Mumbai,Govt,2023,UR,AIQ,1,1623,670
+Grant Medical College and Sir JJ Group of Hospitals,Maharashtra,Mumbai,Govt,2023,OBC,AIQ,1,2800,658
+SMS Medical College,Rajasthan,Jaipur,Govt,2023,UR,AIQ,1,1150,676
+SMS Medical College,Rajasthan,Jaipur,Govt,2023,OBC,AIQ,1,1800,668
+Madras Medical College,Tamil Nadu,Chennai,Govt,2023,UR,AIQ,1,747,685
+Madras Medical College,Tamil Nadu,Chennai,Govt,2023,OBC,AIQ,1,1350,672
+Christian Medical College,Tamil Nadu,Vellore,Private,2023,UR,Management,1,150,700
+Kasturba Medical College,Karnataka,Manipal,Deemed,2023,UR,Management,1,45000,550
+Armed Forces Medical College,Maharashtra,Pune,Govt,2023,UR,AIQ,1,1800,668
+Bangalore Medical College and Research Institute,Karnataka,Bangalore,Govt,2023,UR,AIQ,1,1300,673
+Bangalore Medical College and Research Institute,Karnataka,Bangalore,Govt,2023,OBC,AIQ,1,2600,660
+Bangalore Medical College and Research Institute,Karnataka,Bangalore,Govt,2023,SC,State,1,15000,610
+Seth GS Medical College,Maharashtra,Mumbai,Govt,2023,UR,AIQ,1,656,687
+Seth GS Medical College,Maharashtra,Mumbai,Govt,2023,OBC,AIQ,1,1423,671
