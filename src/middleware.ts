@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-change-in-production');
+const secret = process.env.JWT_SECRET;
+if (!secret) throw new Error('JWT_SECRET environment variable is not set');
+const JWT_SECRET = new TextEncoder().encode(secret);
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only protect admin routes (except login page)

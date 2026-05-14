@@ -15,11 +15,13 @@ export function RankPredictorWidget() {
   
   const [isLeadGateOpen, setIsLeadGateOpen] = useState(false);
   const [isReportUnlocked, setIsReportUnlocked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePredict = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setResults(null);
+    setError(null);
     setIsReportUnlocked(false);
 
     try {
@@ -32,11 +34,11 @@ export function RankPredictorWidget() {
       if (data.success) {
         setResults(data.data);
       } else {
-        alert(data.error || 'Failed to predict');
+        setError(data.error || 'Failed to predict. Please try again.');
       }
     } catch (err) {
       console.error(err);
-      alert('An error occurred');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -82,6 +84,9 @@ export function RankPredictorWidget() {
           <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 h-12 text-lg mt-4">
             {loading ? 'Analyzing historical cutoffs...' : 'Predict Colleges'}
           </Button>
+          {error && (
+            <p className="text-sm text-red-600 text-center mt-2">{error}</p>
+          )}
         </form>
       </div>
 

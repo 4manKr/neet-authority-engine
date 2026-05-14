@@ -9,11 +9,21 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { rank, category } = body;
 
+    const VALID_CATEGORIES = ['UR', 'OBC', 'SC', 'ST', 'EWS'];
+
     if (!rank || !category) {
       return NextResponse.json({ error: 'Rank and category are required' }, { status: 400 });
     }
 
+    if (!VALID_CATEGORIES.includes(category)) {
+      return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+    }
+
     const numericRank = Number(rank);
+
+    if (!Number.isInteger(numericRank) || numericRank < 1 || numericRank > 2000000) {
+      return NextResponse.json({ error: 'Rank must be a positive integer up to 2,000,000' }, { status: 400 });
+    }
 
     // Find cutoffs where the closing rank is >= user's rank (meaning they have a chance)
     // We sort by closingRank ascending so the closest matches appear first.

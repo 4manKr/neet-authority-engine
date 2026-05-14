@@ -7,10 +7,6 @@ import slugify from 'slugify';
 
 export async function POST(req: Request) {
   try {
-    // Basic auth check placeholder (would use NextAuth session here)
-    // const session = await getServerSession();
-    // if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const formData = await req.formData();
     const file = formData.get('file') as File;
     

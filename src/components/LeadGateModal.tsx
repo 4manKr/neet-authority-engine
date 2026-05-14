@@ -19,10 +19,12 @@ export function LeadGateModal({ isOpen, onOpenChange, onSuccess, neetRank, categ
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       const res = await fetch('/api/lead', {
@@ -42,11 +44,11 @@ export function LeadGateModal({ isOpen, onOpenChange, onSuccess, neetRank, categ
         onSuccess();
         onOpenChange(false);
       } else {
-        alert(data.error || 'Failed to capture lead');
+        setError(data.error || 'Something went wrong. Please try again.');
       }
-    } catch (error) {
-      console.error(error);
-      alert('An error occurred. Please try again.');
+    } catch (err) {
+      console.error(err);
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -74,6 +76,9 @@ export function LeadGateModal({ isOpen, onOpenChange, onSuccess, neetRank, categ
             <Label htmlFor="phone">Phone Number</Label>
             <Input id="phone" type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 9876543210" />
           </div>
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
           <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg font-semibold mt-4">
             {loading ? 'Unlocking...' : 'Get Full Report'}
           </Button>
