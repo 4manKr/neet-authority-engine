@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import { generateSlug } from '@/lib/markdown';
 
 export const maxDuration = 60; // Allow up to 60 seconds for AI generation (Vercel Hobby max)
@@ -11,15 +10,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'GEMINI_API_KEY is not configured on the server.' }, { status: 500 });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-
     const body = await req.json();
     const { keyword } = body;
 
     if (!keyword) {
       return NextResponse.json({ error: 'keyword is required' }, { status: 400 });
     }
-
 
     const prompt = `You are an expert Medical Admissions Counselor and SEO Content Writer specializing in NEET UG counselling in India.
 
@@ -53,16 +49,28 @@ IMPORTANT RULES:
 - FAQs should target long-tail search queries related to the keyword
 - Return ONLY valid JSON, no explanation or markdown code fences`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: prompt,
-      config: {
-        maxOutputTokens: 4096,
-        temperature: 0.7,
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096,
+        }
+      })
     });
 
-    const responseText = response.text || '';
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API Error:', errorText);
+      return NextResponse.json({ error: `Gemini API responded with ${response.status}: ${errorText}` }, { status: response.status });
+    }
+
+    const data = await response.json();
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     // Parse JSON from response (handle possible markdown fencing)
     let parsed;
