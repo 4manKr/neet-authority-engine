@@ -7,6 +7,8 @@ import { NewsletterForm } from '@/components/NewsletterForm';
 import { RankPredictorWidget } from '@/components/RankPredictorWidget';
 import type { Metadata } from 'next';
 
+export const revalidate = 300; // Revalidate homepage every 5 minutes
+
 export const metadata: Metadata = {
   title: 'NEET Counselling Info — Cutoffs, College Predictions & Expert Guidance 2026',
   description: 'India\'s #1 NEET UG counselling guide. Get latest cutoff analysis, college predictions, state-wise counselling updates, and expert admission guidance for 2026.',

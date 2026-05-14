@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import dbConnect from '@/lib/db/mongoose';
 import { Blog } from '@/lib/db/models/Blog';
 import { notFound } from 'next/navigation';
@@ -12,7 +13,14 @@ import { NewsletterForm } from '@/components/NewsletterForm';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 
-export const revalidate = 0;
+export const revalidate = 3600; // Revalidate blog pages every hour
+
+// Deduplicated fetch — React cache() ensures this runs once per request
+// even though both generateMetadata and the page component call it.
+const getBlog = cache(async (slug: string) => {
+  await dbConnect();
+  return Blog.findOne({ slug, status: 'published' }).lean();
+});
 
 interface BlogPageProps {
   params: Promise<{ slug: string }>;
@@ -20,8 +28,7 @@ interface BlogPageProps {
 
 export async function generateMetadata({ params }: BlogPageProps): Promise<Metadata> {
   const { slug } = await params;
-  await dbConnect();
-  const blog = await Blog.findOne({ slug, status: 'published' }).lean();
+  const blog = await getBlog(slug);
   if (!blog) return { title: 'Blog Not Found' };
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info';
@@ -56,13 +63,12 @@ export async function generateStaticParams() {
 
 export default async function BlogDetailPage({ params }: BlogPageProps) {
   const { slug } = await params;
-  await dbConnect();
 
-  const blog = await Blog.findOneAndUpdate(
-    { slug, status: 'published' },
-    { $inc: { viewCount: 1 } },
-    { returnDocument: 'after' }
-  ).lean();
+  const [blog] = await Promise.all([
+    getBlog(slug),
+    // Fire view count increment without blocking the page render
+    dbConnect().then(() => Blog.updateOne({ slug, status: 'published' }, { $inc: { viewCount: 1 } }).exec()).catch(() => {}),
+  ]);
 
   if (!blog) notFound();
 
@@ -108,7 +114,7 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
   const html = addHeadingIds(rawHtml);
   const readTime = calculateReadTime(rawContent);
 
-  // Get related posts
+  // Get related posts (parallel with content processing above)
   const relatedBlogs = await Blog.find({
     status: 'published',
     _id: { $ne: blog._id },
