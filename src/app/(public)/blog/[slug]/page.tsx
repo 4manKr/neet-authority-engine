@@ -12,7 +12,7 @@ import { NewsletterForm } from '@/components/NewsletterForm';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 
-export const revalidate = 3600;
+export const revalidate = 0;
 
 interface BlogPageProps {
   params: Promise<{ slug: string }>;
@@ -66,15 +66,39 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
 
   if (!blog) notFound();
 
-  // Sanitize content — if it was saved as raw JSON string, extract the markdown
+  // Sanitize content — handle cases where content is raw JSON or fenced ```json block
   let rawContent = blog.content || '';
-  if (rawContent.trim().startsWith('{') || rawContent.trim().startsWith('[')) {
+  const contentTrimmed = rawContent.trim();
+  if (contentTrimmed.startsWith('```') || contentTrimmed.startsWith('{')) {
+    // Strip fencing
+    let stripped = contentTrimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
     try {
-      const parsed = JSON.parse(rawContent);
-      // Could be the full AI response object or just content field
-      rawContent = parsed.content || parsed.text || parsed.body || JSON.stringify(parsed, null, 2);
+      const parsed = JSON.parse(stripped);
+      rawContent = parsed.content || parsed.text || parsed.body || rawContent;
     } catch {
-      // Not valid JSON, use as-is
+      // Try manual extraction of content field
+      const ci = stripped.indexOf('"content":');
+      if (ci !== -1) {
+        let i = ci + 10;
+        while (i < stripped.length && stripped[i] !== '"') i++;
+        i++;
+        let extracted = '';
+        while (i < stripped.length) {
+          if (stripped[i] === '\\') {
+            const next = stripped[i + 1];
+            if (next === 'n') extracted += '\n';
+            else if (next === '"') extracted += '"';
+            else if (next === '\\') extracted += '\\';
+            else extracted += next;
+            i += 2;
+          } else if (stripped[i] === '"') {
+            break;
+          } else {
+            extracted += stripped[i++];
+          }
+        }
+        if (extracted) rawContent = extracted;
+      }
     }
   }
 
