@@ -1,14 +1,4 @@
 import { NextResponse } from 'next/server';
-function generateSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 80);
-}
-
 import { generateSlug } from '@/lib/markdown';
 
 export const maxDuration = 60; // Allow up to 60 seconds for AI generation (Vercel Hobby max)
