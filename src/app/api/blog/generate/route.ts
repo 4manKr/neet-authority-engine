@@ -9,8 +9,6 @@ function generateSlug(text: string): string {
     .substring(0, 80);
 }
 
-export const maxDuration = 60; // Allow up to 60 seconds for AI generation (Vercel Hobby max)
-
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
