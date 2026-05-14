@@ -66,11 +66,23 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
 
   if (!blog) notFound();
 
+  // Sanitize content — if it was saved as raw JSON string, extract the markdown
+  let rawContent = blog.content || '';
+  if (rawContent.trim().startsWith('{') || rawContent.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(rawContent);
+      // Could be the full AI response object or just content field
+      rawContent = parsed.content || parsed.text || parsed.body || JSON.stringify(parsed, null, 2);
+    } catch {
+      // Not valid JSON, use as-is
+    }
+  }
+
   // Parse content
-  const toc = extractTOC(blog.content);
-  const rawHtml = parseMarkdown(blog.content);
+  const toc = extractTOC(rawContent);
+  const rawHtml = parseMarkdown(rawContent);
   const html = addHeadingIds(rawHtml);
-  const readTime = calculateReadTime(blog.content);
+  const readTime = calculateReadTime(rawContent);
 
   // Get related posts
   const relatedBlogs = await Blog.find({
