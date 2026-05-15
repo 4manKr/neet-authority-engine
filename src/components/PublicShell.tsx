@@ -12,9 +12,9 @@ export function PublicHeader() {
 
   const navLinks = [
     { href: '/blog', label: 'Blog' },
-    { href: '/blog/category/Cutoffs', label: 'Cutoffs' },
+    { href: 'https://www.tabindia.org/ug/closing-cutoff', label: 'Cutoffs', external: true },
     { href: '/blog/category/Guides', label: 'Guides' },
-    { href: '/college', label: 'Colleges' },
+    { href: 'https://www.tabindia.org/ug/college-predictor', label: 'College Predictor', external: true },
   ];
 
   return (
@@ -35,19 +35,31 @@ export function PublicHeader() {
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center space-x-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    pathname === link.href || pathname.startsWith(link.href + '/')
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) =>
+                link.external ? (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      pathname === link.href || pathname.startsWith(link.href + '/')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
               <Link
                 href="/free-neet-counselling"
                 className="ml-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -87,20 +99,33 @@ export function PublicHeader() {
         {mobileOpen && (
           <div className="md:hidden border-t border-gray-100 bg-white">
             <nav className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                    pathname === link.href || pathname.startsWith(link.href + '/')
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) =>
+                link.external ? (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileOpen(false)}
+                    className="px-4 py-3 rounded-xl text-sm font-medium transition-colors text-gray-700 hover:bg-gray-50"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      pathname === link.href || pathname.startsWith(link.href + '/')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
               <Link
                 href="/free-neet-counselling"
                 onClick={() => setMobileOpen(false)}
