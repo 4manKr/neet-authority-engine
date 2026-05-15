@@ -39,10 +39,16 @@ async function fetchUrlText(url: string): Promise<{ url: string; text: string; t
   }
 }
 
+// useSearch=true  → research mode: enables Google Search grounding, free-form text response
+// useSearch=false → generate mode: no grounding (brief has findings), forces JSON via responseMimeType
 async function callGemini(apiKey: string, prompt: string, useSearch: boolean) {
   const body: any = {
     contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 16384,
+      ...(useSearch ? {} : { responseMimeType: 'application/json' }),
+    },
   };
   if (useSearch) {
     body.tools = [{ google_search: {} }];
@@ -53,7 +59,7 @@ async function callGemini(apiKey: string, prompt: string, useSearch: boolean) {
   );
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${err}`);
+    throw new Error(`Gemini API error ${res.status}: ${err.slice(0, 300)}`);
   }
   const data = await res.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -219,18 +225,19 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
   ]
 }`;
 
-      const { text, groundingChunks } = await callGemini(apiKey, prompt, true);
+      // useSearch=false: research brief already has findings; forcing JSON via responseMimeType
+      // is far more reliable for a 1500+ word generation than search grounding.
+      const { text } = await callGemini(apiKey, prompt, false);
 
       let parsed;
       try {
         parsed = parseJson(text);
-      } catch {
-        return NextResponse.json({
-          success: true,
-          raw: true,
-          content: text,
-          message: 'AI returned non-JSON response. Raw content provided.',
-        });
+      } catch (parseErr: any) {
+        console.error('JSON parse failed. Raw response snippet:', text.slice(0, 500));
+        return NextResponse.json(
+          { error: `AI returned malformed JSON: ${parseErr.message}. Please try again.` },
+          { status: 500 }
+        );
       }
 
       const slug = generateSlug(parsed.title || keyword);
@@ -249,7 +256,7 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
           tags: parsed.tags || [],
           content: parsed.content || '',
           faqs: parsed.faqs || [],
-          sourcesUsed: groundingChunks.slice(0, 8),
+          sourcesUsed: brief.sourcesFound || [],
         },
       });
     }
