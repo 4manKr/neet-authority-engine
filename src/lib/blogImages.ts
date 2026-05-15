@@ -1,5 +1,8 @@
 // Shared blog image generation — used by generate route (images mode) and approve route
 
+import dbConnect from '@/lib/db/mongoose';
+import { Image } from '@/lib/db/models/Image';
+
 function simpleHash(str: string): number {
   let h = 0;
   for (let i = 0; i < str.length; i++) {
@@ -26,23 +29,16 @@ export function pollinationsUrl(prompt: string, width: number, height: number, s
   );
 }
 
-export async function uploadToCloudinary(b64: string, folder: string): Promise<string> {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
-  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET!;
-  const form = new FormData();
-  form.append('file', `data:image/png;base64,${b64}`);
-  form.append('upload_preset', uploadPreset);
-  form.append('folder', folder);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: 'POST',
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Cloudinary upload failed: ${res.status}`);
-  const data = await res.json();
-  return data.secure_url as string;
+// Save DALL-E base64 image to MongoDB and return a permanent serving URL
+async function uploadToMongoDB(b64: string, folder: string): Promise<string> {
+  await dbConnect();
+  const buffer = Buffer.from(b64, 'base64');
+  const doc = await Image.create({ data: buffer, contentType: 'image/png', folder });
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info').replace(/\/$/, '');
+  return `${siteUrl}/api/images/${doc._id}`;
 }
 
-export async function generateDalleImage(
+async function generateDalleImage(
   prompt: string,
   size: '1792x1024' | '1024x1024',
   folder: string,
@@ -67,7 +63,7 @@ export async function generateDalleImage(
   const data = await res.json();
   const b64 = data.data?.[0]?.b64_json as string;
   if (!b64) throw new Error('DALL-E 3 returned no image data');
-  return uploadToCloudinary(b64, folder);
+  return uploadToMongoDB(b64, folder);
 }
 
 export function insertInlineImages(
@@ -120,8 +116,7 @@ export async function generateBlogImages(
   const inline2Prompt   = imagePrompts.inline2   || DEFAULT_INLINE2;
 
   const openaiKey = process.env.OPENAI_API_KEY;
-  const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET;
-  const useDalle = !!(openaiKey && hasCloudinary);
+  const useDalle = !!openaiKey; // MongoDB is always available, so just need the OpenAI key
 
   let thumbnailUrl: string;
   let inline1Url: string;
