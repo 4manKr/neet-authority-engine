@@ -26,6 +26,7 @@ interface GeneratedBlog {
   tags: string[];
   content: string;
   featuredImage?: string;
+  imagePrompts?: Record<string, string>;
   faqs: Array<{ question: string; answer: string }>;
   sourcesUsed: Array<{ uri: string; title: string }>;
 }
@@ -78,6 +79,7 @@ export default function AIGeneratePage() {
   const [blog, setBlog] = useState<GeneratedBlog | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishStage, setPublishStage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   // ── URL list helpers ──────────────────────────────────────────────────────
@@ -188,11 +190,40 @@ export default function AIGeneratePage() {
     if (!blog) return;
     status === 'draft' ? setSaving(true) : setPublishing(true);
     setError(null);
+
     try {
+      let finalBlog = { ...blog };
+
+      // Generate images only on publish approval
+      if (status === 'published' && blog.imagePrompts) {
+        setPublishStage('Generating images...');
+        const imgRes = await fetch('/api/blog/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keyword: blog.title,
+            mode: 'images',
+            imagePrompts: blog.imagePrompts,
+            slug: blog.slug,
+            title: blog.title,
+            content: blog.content,
+          }),
+        });
+        const imgData = await imgRes.json();
+        if (imgData.success && imgData.data) {
+          finalBlog = {
+            ...finalBlog,
+            featuredImage: imgData.data.featuredImage,
+            content: imgData.data.content,
+          };
+        }
+        setPublishStage('Saving...');
+      }
+
       const res = await fetch('/api/admin/blogs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...blog, status }),
+        body: JSON.stringify({ ...finalBlog, status }),
       });
       const data = await res.json();
       if (data.success) {
@@ -206,6 +237,7 @@ export default function AIGeneratePage() {
     } finally {
       setSaving(false);
       setPublishing(false);
+      setPublishStage('');
     }
   };
 
@@ -534,7 +566,7 @@ export default function AIGeneratePage() {
           </button>
           {generating && (
             <p className="text-center text-gray-500 text-sm -mt-2">
-              AI is writing a 1500+ word SEO-optimised article. This takes ~20–30 seconds.
+              AI is writing a 1500+ word SEO-optimised article. This takes ~20–30 seconds. Images will be generated when you approve &amp; publish.
             </p>
           )}
         </div>
@@ -550,9 +582,14 @@ export default function AIGeneratePage() {
               <button
                 onClick={() => handleSave('published')}
                 disabled={saving || publishing}
-                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {publishing ? 'Publishing...' : '🚀 Publish Now'}
+                {publishing ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {publishStage || 'Publishing...'}
+                  </>
+                ) : '🚀 Approve & Publish'}
               </button>
               <button
                 onClick={() => handleSave('draft')}
@@ -605,22 +642,30 @@ export default function AIGeneratePage() {
 
             {/* Meta sidebar */}
             <div className="space-y-4">
-              {blog.featuredImage && (
-                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                  <div className="px-4 pt-4 pb-2">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">🖼️ Generated Thumbnail</p>
-                  </div>
-                  <img
-                    src={blog.featuredImage}
-                    alt="Generated thumbnail"
-                    className="w-full object-cover max-h-48"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  <div className="px-4 py-2">
-                    <p className="text-[10px] text-gray-600 truncate">{blog.featuredImage}</p>
-                  </div>
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                <div className="px-4 pt-4 pb-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">🖼️ Thumbnail</p>
                 </div>
-              )}
+                {blog.featuredImage ? (
+                  <>
+                    <img
+                      src={blog.featuredImage}
+                      alt="Generated thumbnail"
+                      className="w-full object-cover max-h-48"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                    <div className="px-4 py-2">
+                      <p className="text-[10px] text-gray-600 truncate">{blog.featuredImage}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mx-4 mb-4 flex items-center justify-center h-28 bg-gray-800 rounded-lg border border-dashed border-gray-700">
+                    <p className="text-xs text-gray-500 text-center px-4">
+                      Image will be generated<br />when you click <strong className="text-gray-400">Approve &amp; Publish</strong>
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
                 <h3 className="text-sm font-bold text-white">SEO Meta</h3>

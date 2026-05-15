@@ -250,7 +250,7 @@ function parseJson(text: string): any {
   throw new Error('AI returned malformed JSON that could not be repaired. Please regenerate.');
 }
 
-// Parse either multipart/form-data (research with files) or application/json (generate)
+// Parse either multipart/form-data (research with files) or application/json (generate/images)
 async function parseRequest(req: Request): Promise<{
   keyword: string;
   urls: string[];
@@ -258,6 +258,10 @@ async function parseRequest(req: Request): Promise<{
   brief: any;
   answers: Record<string, string>;
   fileParts: FilePart[];
+  imagePrompts: Record<string, string>;
+  bodySlug: string;
+  bodyTitle: string;
+  bodyContent: string;
 }> {
   const ct = req.headers.get('content-type') || '';
 
@@ -276,7 +280,7 @@ async function parseRequest(req: Request): Promise<{
 
     for (const file of uploadedFiles) {
       if (!file.size) continue;
-      if (file.size > 15 * 1024 * 1024) continue; // skip files > 15 MB
+      if (file.size > 15 * 1024 * 1024) continue;
 
       const mimeType = file.type || 'application/octet-stream';
       if (!SUPPORTED_MIME_TYPES.has(mimeType)) continue;
@@ -286,10 +290,10 @@ async function parseRequest(req: Request): Promise<{
       fileParts.push({ mimeType, data, name: file.name });
     }
 
-    return { keyword, urls, mode, brief, answers, fileParts };
+    return { keyword, urls, mode, brief, answers, fileParts, imagePrompts: {}, bodySlug: '', bodyTitle: '', bodyContent: '' };
   }
 
-  // Plain JSON (generate mode or research without files)
+  // Plain JSON (generate / images mode)
   const body = await req.json();
   return {
     keyword: body.keyword || '',
@@ -298,6 +302,10 @@ async function parseRequest(req: Request): Promise<{
     brief: body.brief || null,
     answers: body.answers || {},
     fileParts: [],
+    imagePrompts: body.imagePrompts || {},
+    bodySlug: body.slug || '',
+    bodyTitle: body.title || '',
+    bodyContent: body.content || '',
   };
 }
 
@@ -309,7 +317,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'GEMINI_API_KEY is not configured.' }, { status: 500 });
     }
 
-    const { keyword, urls, mode, brief, answers, fileParts } = await parseRequest(req);
+    const { keyword, urls, mode, brief, answers, fileParts, imagePrompts, bodySlug, bodyTitle, bodyContent } = await parseRequest(req);
 
     if (!keyword?.trim()) {
       return NextResponse.json({ error: 'keyword is required' }, { status: 400 });
@@ -472,19 +480,39 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
       }
 
       const slug = generateSlug(parsed.title || keyword);
-      const seed = simpleHash(parsed.title || keyword);
 
-      // Build image URLs from AI-generated prompts using Pollinations (Flux model)
-      const imgPrompts: { thumbnail?: string; inline1?: string; inline2?: string } =
-        parsed.imagePrompts || {};
+      // Images are NOT generated here — they are generated on publish approval.
+      // We return the AI-written image prompts so the frontend can send them back
+      // when the admin approves the blog for publishing.
+      return NextResponse.json({
+        success: true,
+        mode: 'generate',
+        data: {
+          title: parsed.title || '',
+          slug,
+          metaTitle: parsed.metaTitle || parsed.title || '',
+          metaDescription: parsed.metaDescription || '',
+          excerpt: parsed.excerpt || '',
+          keywords: parsed.keywords || [],
+          category: parsed.category || 'Guides',
+          tags: parsed.tags || [],
+          content: parsed.content || '',
+          imagePrompts: parsed.imagePrompts || {},
+          faqs: parsed.faqs || [],
+          sourcesUsed: brief.sourcesFound || [],
+        },
+      });
+    }
 
-      // Topic-aware professional prompt builder
-      const topic = (parsed.category || 'medical education').toLowerCase();
-      const titleSnippet = (parsed.title || keyword).slice(0, 60);
+    // ── IMAGES MODE — called on publish approval ───────────────────────────
+    if (mode === 'images') {
+      const imgPrompts = imagePrompts;
+      const seed = simpleHash(bodyTitle || keyword);
+      const slug = bodySlug || generateSlug(bodyTitle || keyword);
 
       const thumbnailPrompt =
         imgPrompts.thumbnail ||
-        `Confident young Indian woman doctor in a pristine white lab coat and stethoscope, smiling at camera, modern hospital corridor background softly blurred, bright studio-quality lighting, professional headshot, clean background, sharp focus, stock photography`;
+        `Confident young Indian woman doctor in a pristine white lab coat and stethoscope, smiling at camera, modern hospital corridor background softly blurred, bright studio-quality lighting, professional headshot, clean background, sharp focus`;
 
       const inline1Prompt =
         imgPrompts.inline1 ||
@@ -498,17 +526,15 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
       const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET;
       const useDalle = !!(openaiKey && hasCloudinary);
 
-      const blogFolder = `neet-blog/${slug}`;
-
       let thumbnailUrl: string;
       let inline1Url: string;
       let inline2Url: string;
 
       if (useDalle) {
         [thumbnailUrl, inline1Url, inline2Url] = await Promise.all([
-          generateDalleImage(thumbnailPrompt, '1792x1024', blogFolder, openaiKey!),
-          generateDalleImage(inline1Prompt,   '1792x1024', blogFolder, openaiKey!),
-          generateDalleImage(inline2Prompt,   '1792x1024', blogFolder, openaiKey!),
+          generateDalleImage(thumbnailPrompt, '1792x1024', `neet-blog/${slug}`, openaiKey!),
+          generateDalleImage(inline1Prompt,   '1792x1024', `neet-blog/${slug}`, openaiKey!),
+          generateDalleImage(inline2Prompt,   '1792x1024', `neet-blog/${slug}`, openaiKey!),
         ]);
       } else {
         thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
@@ -516,36 +542,22 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
         inline2Url   = pollinationsUrl(inline2Prompt,   1200, 800, seed + 2);
       }
 
-      // Embed inline images into the markdown content
       const contentWithImages = insertInlineImages(
-        parsed.content || '',
+        bodyContent || '',
         [
-          { url: inline1Url, alt: `${parsed.title} — visual guide` },
+          { url: inline1Url, alt: `${bodyTitle} — visual guide` },
           { url: inline2Url, alt: `NEET counselling — expert guidance` },
         ],
       );
 
       return NextResponse.json({
         success: true,
-        mode: 'generate',
-        data: {
-          title: parsed.title || '',
-          slug,
-          metaTitle: parsed.metaTitle || parsed.title || '',
-          metaDescription: parsed.metaDescription || '',
-          excerpt: parsed.excerpt || '',
-          keywords: parsed.keywords || [],
-          category: parsed.category || 'Guides',
-          tags: parsed.tags || [],
-          content: contentWithImages,
-          featuredImage: thumbnailUrl,
-          faqs: parsed.faqs || [],
-          sourcesUsed: brief.sourcesFound || [],
-        },
+        mode: 'images',
+        data: { featuredImage: thumbnailUrl, content: contentWithImages },
       });
     }
 
-    return NextResponse.json({ error: 'Invalid mode. Use "research" or "generate".' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid mode. Use "research", "generate", or "images".' }, { status: 400 });
   } catch (error: any) {
     console.error('AI Blog Generation Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
