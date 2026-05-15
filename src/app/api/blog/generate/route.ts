@@ -18,10 +18,21 @@ function simpleHash(str: string): number {
   return Math.abs(h) % 99991; // keep seed < 100k for Pollinations
 }
 
+const NEGATIVE =
+  'text, watermark, logo, banner, sign, words, letters, low quality, blurry, pixelated, cartoon, illustration, 3d render, painting, sketch, ugly, distorted, overexposed, underexposed, duplicate heads, bad anatomy';
+
 function pollinationsUrl(prompt: string, width: number, height: number, seed: number): string {
-  const safe = (prompt + ', photorealistic, high quality photography, no text overlays, no watermarks')
-    .slice(0, 400);
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(safe)}?width=${width}&height=${height}&nologo=true&model=flux&seed=${seed}`;
+  const full = (
+    prompt +
+    ', professional editorial photography, ultra sharp focus, perfect exposure, ' +
+    'award-winning composition, Nikon D850, 85mm f/1.4, cinematic colour grading, ' +
+    'high resolution, no text, no watermarks'
+  ).slice(0, 500);
+  return (
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(full)}` +
+    `?width=${width}&height=${height}&nologo=true&model=flux-pro&seed=${seed}` +
+    `&enhance=true&negative=${encodeURIComponent(NEGATIVE)}`
+  );
 }
 
 /**
@@ -387,9 +398,9 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
     {"question": "Long-tail FAQ 5?", "answer": "Detailed answer 5"}
   ],
   "imagePrompts": {
-    "thumbnail": "Vivid, photorealistic scene directly related to '${keyword}' — must show real-world visual elements like Indian students, medical campuses, books, stethoscopes, or relevant scenery. NO text, NO infographics, NO charts. Example style: 'Young Indian medical students celebrating with acceptance letters outside a prestigious hospital campus, golden hour light, cinematic photography'",
-    "inline1": "A photorealistic, emotionally engaging scene relevant to the first key topic of this blog. Show people, places or objects — absolutely NO text or overlaid words. Rich colours, realistic lighting.",
-    "inline2": "A photorealistic scene relevant to the main theme of this blog, different from inline1. Could show a student studying, a counselling session, a college campus, or medical equipment. NO text."
+    "thumbnail": "Write a single, highly specific image generation prompt (max 120 words) for a BLOG THUMBNAIL (16:9). It must be a PHOTOREALISTIC scene directly tied to the blog topic. Include: the subject (who/what), setting (where), mood/lighting, camera style. Use concrete visual details — colours, materials, expressions, environment. NO text, NO infographics, NO charts in the image. Example of a GOOD prompt: 'Confident young Indian woman in a white lab coat holding a medical college acceptance letter, standing at the entrance of a modern hospital with glass facade, warm golden hour sunlight, shallow depth of field, Canon EOS R5 editorial photography, vibrant colours'",
+    "inline1": "Write a single, highly specific image generation prompt (max 100 words) for an INLINE image relevant to the FIRST main section of this blog. Must be photorealistic, emotionally engaging, with real people or environment. Include subject, setting, lighting. NO text or words in the image. Completely different scene from the thumbnail.",
+    "inline2": "Write a single, highly specific image generation prompt (max 100 words) for a SECOND INLINE image relevant to the MAIN THEME of this blog. Must be photorealistic with strong visual storytelling. Include subject, setting, mood. NO text in the image. Completely different scene from thumbnail and inline1."
   }
 }`;
 
@@ -415,15 +426,15 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
 
       const thumbnailPrompt =
         imgPrompts.thumbnail ||
-        `Indian medical students studying together near a prestigious hospital campus, cinematic photography, warm light, no text`;
+        `Confident young Indian medical student in a white lab coat holding MBBS acceptance letter, standing at the entrance of a prestigious modern hospital with glass facade, warm golden hour sunlight, shallow depth of field, editorial photography`;
 
       const inline1Prompt =
         imgPrompts.inline1 ||
-        `Indian students reviewing NEET counselling documents with a counsellor, photorealistic, no text`;
+        `Indian university students gathered around a large table reviewing college brochures with a senior counsellor, bright modern office, warm interior lighting, candid moment, sharp focus`;
 
       const inline2Prompt =
         imgPrompts.inline2 ||
-        `Modern medical college campus in India, aerial view, golden hour, photorealistic, no text`;
+        `Aerial drone view of a sprawling Indian medical college campus with green lawns and modern academic buildings, early morning light, vivid colours, architectural photography`;
 
       const thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
       const inline1Url   = pollinationsUrl(inline1Prompt,   1200, 800, seed + 1);
