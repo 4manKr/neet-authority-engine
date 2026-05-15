@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { generateBlogImages } from '@/lib/blogImages';
 
 export const maxDuration = 300;
 
@@ -7,117 +8,6 @@ const SUPPORTED_MIME_TYPES = new Set([
   'application/pdf',
   'text/plain', 'text/csv',
 ]);
-
-// ── Image helpers ─────────────────────────────────────────────────────────────
-
-function simpleHash(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = Math.imul(31, h) + str.charCodeAt(i) | 0;
-  }
-  return Math.abs(h) % 99991;
-}
-
-// ── DALL-E 3 + Cloudinary ─────────────────────────────────────────────────────
-
-async function uploadToCloudinary(b64: string, folder: string): Promise<string> {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
-  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET!;
-
-  const form = new FormData();
-  form.append('file', `data:image/png;base64,${b64}`);
-  form.append('upload_preset', uploadPreset);
-  form.append('folder', folder);
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: 'POST',
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Cloudinary upload failed: ${res.status}`);
-  const data = await res.json();
-  return data.secure_url as string;
-}
-
-async function generateDalleImage(
-  prompt: string,
-  size: '1792x1024' | '1024x1024',
-  folder: string,
-  openaiKey: string,
-): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${openaiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'dall-e-3',
-      prompt: prompt.slice(0, 4000),
-      n: 1,
-      size,
-      quality: 'hd',
-      response_format: 'b64_json',
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`DALL-E 3 error ${res.status}: ${err.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  const b64 = data.data?.[0]?.b64_json as string;
-  if (!b64) throw new Error('DALL-E 3 returned no image data');
-  return uploadToCloudinary(b64, folder);
-}
-
-// ── Pollinations fallback ─────────────────────────────────────────────────────
-
-const QUALITY_SUFFIX =
-  ', professional stock photography, ultra sharp focus, perfect studio lighting, ' +
-  'clean composition, 4K resolution, no text, no watermarks, no logos';
-
-const NEGATIVE =
-  'text, watermark, logo, words, letters, blurry, pixelated, cartoon, illustration, ' +
-  '3d render, painting, sketch, ugly, distorted, overexposed, crowds, street scene, ' +
-  'bad anatomy, duplicate limbs, disfigured';
-
-function pollinationsUrl(prompt: string, width: number, height: number, seed: number): string {
-  const full = (prompt + QUALITY_SUFFIX).slice(0, 500);
-  return (
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(full)}` +
-    `?width=${width}&height=${height}&nologo=true&model=flux-realism&seed=${seed}` +
-    `&negative=${encodeURIComponent(NEGATIVE)}`
-  );
-}
-
-/**
- * Insert up to 2 inline images into markdown content at H2 boundaries.
- * Images are placed after the 2nd H2 section and after the midpoint H2 section.
- */
-function insertInlineImages(
-  content: string,
-  images: Array<{ url: string; alt: string }>,
-): string {
-  if (!images.length) return content;
-
-  // Split on H2 headings while keeping the heading in each chunk
-  const sections = content.split(/(?=\n## )/);
-  if (sections.length < 3) return content + images.map(img => `\n\n![${img.alt}](${img.url})\n`).join('');
-
-  const result = [...sections];
-
-  // After section index 1 (second section = first H2 body)
-  if (images[0] && result.length >= 2) {
-    result[1] = result[1].trimEnd() + `\n\n![${images[0].alt}](${images[0].url})\n`;
-  }
-
-  // After the section around the midpoint
-  const midIdx = Math.max(2, Math.floor(result.length / 2));
-  if (images[1] && result.length >= 4 && midIdx !== 1) {
-    result[midIdx] = result[midIdx].trimEnd() + `\n\n![${images[1].alt}](${images[1].url})\n`;
-  }
-
-  return result.join('');
-}
 
 function generateSlug(text: string): string {
   return text
@@ -506,54 +396,17 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
 
     // ── IMAGES MODE — called on publish approval ───────────────────────────
     if (mode === 'images') {
-      const imgPrompts = imagePrompts;
-      const seed = simpleHash(bodyTitle || keyword);
       const slug = bodySlug || generateSlug(bodyTitle || keyword);
-
-      const thumbnailPrompt =
-        imgPrompts.thumbnail ||
-        `Confident young Indian woman doctor in a pristine white lab coat and stethoscope, smiling at camera, modern hospital corridor background softly blurred, bright studio-quality lighting, professional headshot, clean background, sharp focus`;
-
-      const inline1Prompt =
-        imgPrompts.inline1 ||
-        `Flat-lay top-down view of a clean white desk with NEET study materials — open medical textbook showing anatomy diagrams, stethoscope, a notepad with neat handwriting, pen and green plant, bright natural window light, minimal aesthetic, product photography style`;
-
-      const inline2Prompt =
-        imgPrompts.inline2 ||
-        `Modern bright medical college counselling office interior, a senior Indian counsellor gesturing at a laptop screen showing college rankings, two students listening attentively across the desk, large window with natural daylight, tidy professional environment, candid documentary photography`;
-
-      const openaiKey = process.env.OPENAI_API_KEY;
-      const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET;
-      const useDalle = !!(openaiKey && hasCloudinary);
-
-      let thumbnailUrl: string;
-      let inline1Url: string;
-      let inline2Url: string;
-
-      if (useDalle) {
-        [thumbnailUrl, inline1Url, inline2Url] = await Promise.all([
-          generateDalleImage(thumbnailPrompt, '1792x1024', `neet-blog/${slug}`, openaiKey!),
-          generateDalleImage(inline1Prompt,   '1792x1024', `neet-blog/${slug}`, openaiKey!),
-          generateDalleImage(inline2Prompt,   '1792x1024', `neet-blog/${slug}`, openaiKey!),
-        ]);
-      } else {
-        thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
-        inline1Url   = pollinationsUrl(inline1Prompt,   1200, 800, seed + 1);
-        inline2Url   = pollinationsUrl(inline2Prompt,   1200, 800, seed + 2);
-      }
-
-      const contentWithImages = insertInlineImages(
-        bodyContent || '',
-        [
-          { url: inline1Url, alt: `${bodyTitle} — visual guide` },
-          { url: inline2Url, alt: `NEET counselling — expert guidance` },
-        ],
+      const { featuredImage, content: contentWithImages } = await generateBlogImages(
+        imagePrompts,
+        bodyTitle || keyword,
+        bodyContent,
+        slug,
       );
-
       return NextResponse.json({
         success: true,
         mode: 'images',
-        data: { featuredImage: thumbnailUrl, content: contentWithImages },
+        data: { featuredImage, content: contentWithImages },
       });
     }
 
