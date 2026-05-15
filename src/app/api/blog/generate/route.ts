@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const SUPPORTED_MIME_TYPES = new Set([
   'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
@@ -15,8 +15,61 @@ function simpleHash(str: string): number {
   for (let i = 0; i < str.length; i++) {
     h = Math.imul(31, h) + str.charCodeAt(i) | 0;
   }
-  return Math.abs(h) % 99991; // keep seed < 100k for Pollinations
+  return Math.abs(h) % 99991;
 }
+
+// ── DALL-E 3 + Cloudinary ─────────────────────────────────────────────────────
+
+async function uploadToCloudinary(b64: string, folder: string): Promise<string> {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
+  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET!;
+
+  const form = new FormData();
+  form.append('file', `data:image/png;base64,${b64}`);
+  form.append('upload_preset', uploadPreset);
+  form.append('folder', folder);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Cloudinary upload failed: ${res.status}`);
+  const data = await res.json();
+  return data.secure_url as string;
+}
+
+async function generateDalleImage(
+  prompt: string,
+  size: '1792x1024' | '1024x1024',
+  folder: string,
+  openaiKey: string,
+): Promise<string> {
+  const res = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${openaiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'dall-e-3',
+      prompt: prompt.slice(0, 4000),
+      n: 1,
+      size,
+      quality: 'hd',
+      response_format: 'b64_json',
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`DALL-E 3 error ${res.status}: ${err.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const b64 = data.data?.[0]?.b64_json as string;
+  if (!b64) throw new Error('DALL-E 3 returned no image data');
+  return uploadToCloudinary(b64, folder);
+}
+
+// ── Pollinations fallback ─────────────────────────────────────────────────────
 
 const QUALITY_SUFFIX =
   ', professional stock photography, ultra sharp focus, perfect studio lighting, ' +
@@ -441,9 +494,27 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
         imgPrompts.inline2 ||
         `Modern bright medical college counselling office interior, a senior Indian counsellor gesturing at a laptop screen showing college rankings, two students listening attentively across the desk, large window with natural daylight, tidy professional environment, candid documentary photography`;
 
-      const thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
-      const inline1Url   = pollinationsUrl(inline1Prompt,   1200, 800, seed + 1);
-      const inline2Url   = pollinationsUrl(inline2Prompt,   1200, 800, seed + 2);
+      const openaiKey = process.env.OPENAI_API_KEY;
+      const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET;
+      const useDalle = !!(openaiKey && hasCloudinary);
+
+      const blogFolder = `neet-blog/${slug}`;
+
+      let thumbnailUrl: string;
+      let inline1Url: string;
+      let inline2Url: string;
+
+      if (useDalle) {
+        [thumbnailUrl, inline1Url, inline2Url] = await Promise.all([
+          generateDalleImage(thumbnailPrompt, '1792x1024', blogFolder, openaiKey!),
+          generateDalleImage(inline1Prompt,   '1792x1024', blogFolder, openaiKey!),
+          generateDalleImage(inline2Prompt,   '1792x1024', blogFolder, openaiKey!),
+        ]);
+      } else {
+        thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
+        inline1Url   = pollinationsUrl(inline1Prompt,   1200, 800, seed + 1);
+        inline2Url   = pollinationsUrl(inline2Prompt,   1200, 800, seed + 2);
+      }
 
       // Embed inline images into the markdown content
       const contentWithImages = insertInlineImages(
