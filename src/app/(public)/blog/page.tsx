@@ -7,6 +7,8 @@ import { SearchBar } from '@/components/SearchBar';
 import { CategoryBadge } from '@/components/CategoryBadge';
 import type { Metadata } from 'next';
 
+export const revalidate = 300; // Revalidate every 5 minutes
+
 export const metadata: Metadata = {
   title: 'NEET Counselling Blog — Latest Updates, Cutoffs & Guides | NEET Counselling Info',
   description: 'Read expert articles on NEET UG counselling, cutoff analysis, state-wise guides, and medical college admission strategies for 2026.',

@@ -55,7 +55,9 @@ export async function generateStaticParams() {
   try {
     await dbConnect();
     const blogs = await Blog.find({ status: 'published' }, { slug: 1 }).limit(200).lean();
-    return blogs.map((b) => ({ slug: b.slug }));
+    return blogs
+      .filter((b) => b.slug && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(b.slug))
+      .map((b) => ({ slug: b.slug }));
   } catch {
     return [];
   }
