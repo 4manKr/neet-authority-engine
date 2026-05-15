@@ -18,20 +18,21 @@ function simpleHash(str: string): number {
   return Math.abs(h) % 99991; // keep seed < 100k for Pollinations
 }
 
+const QUALITY_SUFFIX =
+  ', professional stock photography, ultra sharp focus, perfect studio lighting, ' +
+  'clean composition, 4K resolution, no text, no watermarks, no logos';
+
 const NEGATIVE =
-  'text, watermark, logo, banner, sign, words, letters, low quality, blurry, pixelated, cartoon, illustration, 3d render, painting, sketch, ugly, distorted, overexposed, underexposed, duplicate heads, bad anatomy';
+  'text, watermark, logo, words, letters, blurry, pixelated, cartoon, illustration, ' +
+  '3d render, painting, sketch, ugly, distorted, overexposed, crowds, street scene, ' +
+  'bad anatomy, duplicate limbs, disfigured';
 
 function pollinationsUrl(prompt: string, width: number, height: number, seed: number): string {
-  const full = (
-    prompt +
-    ', professional editorial photography, ultra sharp focus, perfect exposure, ' +
-    'award-winning composition, Nikon D850, 85mm f/1.4, cinematic colour grading, ' +
-    'high resolution, no text, no watermarks'
-  ).slice(0, 500);
+  const full = (prompt + QUALITY_SUFFIX).slice(0, 500);
   return (
     `https://image.pollinations.ai/prompt/${encodeURIComponent(full)}` +
-    `?width=${width}&height=${height}&nologo=true&model=flux-pro&seed=${seed}` +
-    `&enhance=true&negative=${encodeURIComponent(NEGATIVE)}`
+    `?width=${width}&height=${height}&nologo=true&model=flux-realism&seed=${seed}` +
+    `&negative=${encodeURIComponent(NEGATIVE)}`
   );
 }
 
@@ -398,9 +399,9 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
     {"question": "Long-tail FAQ 5?", "answer": "Detailed answer 5"}
   ],
   "imagePrompts": {
-    "thumbnail": "Write a single, highly specific image generation prompt (max 120 words) for a BLOG THUMBNAIL (16:9). It must be a PHOTOREALISTIC scene directly tied to the blog topic. Include: the subject (who/what), setting (where), mood/lighting, camera style. Use concrete visual details — colours, materials, expressions, environment. NO text, NO infographics, NO charts in the image. Example of a GOOD prompt: 'Confident young Indian woman in a white lab coat holding a medical college acceptance letter, standing at the entrance of a modern hospital with glass facade, warm golden hour sunlight, shallow depth of field, Canon EOS R5 editorial photography, vibrant colours'",
-    "inline1": "Write a single, highly specific image generation prompt (max 100 words) for an INLINE image relevant to the FIRST main section of this blog. Must be photorealistic, emotionally engaging, with real people or environment. Include subject, setting, lighting. NO text or words in the image. Completely different scene from the thumbnail.",
-    "inline2": "Write a single, highly specific image generation prompt (max 100 words) for a SECOND INLINE image relevant to the MAIN THEME of this blog. Must be photorealistic with strong visual storytelling. Include subject, setting, mood. NO text in the image. Completely different scene from thumbnail and inline1."
+    "thumbnail": "Write ONE image generation prompt (max 80 words) for a PROFESSIONAL BLOG THUMBNAIL. STRICT RULES: (1) Indoor or studio setting ONLY — never streets, crowds, or outdoor public spaces. (2) Subject must be a single person or a clean object/scene — not a group of people. (3) Must be relevant to this blog topic. (4) Describe: subject, exact indoor setting, lighting style, camera details. Example: 'Confident Indian male doctor in white lab coat, modern private clinic office background with bookshelves, soft key light from left, professional portrait, shallow depth of field, Canon 85mm'",
+    "inline1": "Write ONE image generation prompt (max 70 words) for an INLINE illustration of the first main section. STRICT RULES: (1) Indoor or controlled setting ONLY — no streets, no crowds, no outdoor scenes. (2) Clean, uncluttered composition. (3) Either a flat-lay product shot of relevant objects (books, stethoscope, documents, laptop) OR a single person in a professional indoor setting. (4) Bright, clean lighting. No text in image.",
+    "inline2": "Write ONE image generation prompt (max 70 words) for a SECOND INLINE image on the blog main theme. STRICT RULES: (1) Indoor setting ONLY — no streets, no outdoor scenes. (2) Must be completely different subject and scene from thumbnail and inline1. (3) Choose one: a counselling session interior, a medical college lecture hall interior, a study desk flat-lay, or a hospital corridor. (4) Professional photography style, clean composition. No text."
   }
 }`;
 
@@ -424,17 +425,21 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
       const imgPrompts: { thumbnail?: string; inline1?: string; inline2?: string } =
         parsed.imagePrompts || {};
 
+      // Topic-aware professional prompt builder
+      const topic = (parsed.category || 'medical education').toLowerCase();
+      const titleSnippet = (parsed.title || keyword).slice(0, 60);
+
       const thumbnailPrompt =
         imgPrompts.thumbnail ||
-        `Confident young Indian medical student in a white lab coat holding MBBS acceptance letter, standing at the entrance of a prestigious modern hospital with glass facade, warm golden hour sunlight, shallow depth of field, editorial photography`;
+        `Confident young Indian woman doctor in a pristine white lab coat and stethoscope, smiling at camera, modern hospital corridor background softly blurred, bright studio-quality lighting, professional headshot, clean background, sharp focus, stock photography`;
 
       const inline1Prompt =
         imgPrompts.inline1 ||
-        `Indian university students gathered around a large table reviewing college brochures with a senior counsellor, bright modern office, warm interior lighting, candid moment, sharp focus`;
+        `Flat-lay top-down view of a clean white desk with NEET study materials — open medical textbook showing anatomy diagrams, stethoscope, a notepad with neat handwriting, pen and green plant, bright natural window light, minimal aesthetic, product photography style`;
 
       const inline2Prompt =
         imgPrompts.inline2 ||
-        `Aerial drone view of a sprawling Indian medical college campus with green lawns and modern academic buildings, early morning light, vivid colours, architectural photography`;
+        `Modern bright medical college counselling office interior, a senior Indian counsellor gesturing at a laptop screen showing college rankings, two students listening attentively across the desk, large window with natural daylight, tidy professional environment, candid documentary photography`;
 
       const thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
       const inline1Url   = pollinationsUrl(inline1Prompt,   1200, 800, seed + 1);
