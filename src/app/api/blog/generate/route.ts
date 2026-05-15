@@ -8,6 +8,52 @@ const SUPPORTED_MIME_TYPES = new Set([
   'text/plain', 'text/csv',
 ]);
 
+// ── Image helpers ─────────────────────────────────────────────────────────────
+
+function simpleHash(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+  }
+  return Math.abs(h) % 99991; // keep seed < 100k for Pollinations
+}
+
+function pollinationsUrl(prompt: string, width: number, height: number, seed: number): string {
+  const safe = (prompt + ', photorealistic, high quality photography, no text overlays, no watermarks')
+    .slice(0, 400);
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(safe)}?width=${width}&height=${height}&nologo=true&model=flux&seed=${seed}`;
+}
+
+/**
+ * Insert up to 2 inline images into markdown content at H2 boundaries.
+ * Images are placed after the 2nd H2 section and after the midpoint H2 section.
+ */
+function insertInlineImages(
+  content: string,
+  images: Array<{ url: string; alt: string }>,
+): string {
+  if (!images.length) return content;
+
+  // Split on H2 headings while keeping the heading in each chunk
+  const sections = content.split(/(?=\n## )/);
+  if (sections.length < 3) return content + images.map(img => `\n\n![${img.alt}](${img.url})\n`).join('');
+
+  const result = [...sections];
+
+  // After section index 1 (second section = first H2 body)
+  if (images[0] && result.length >= 2) {
+    result[1] = result[1].trimEnd() + `\n\n![${images[0].alt}](${images[0].url})\n`;
+  }
+
+  // After the section around the midpoint
+  const midIdx = Math.max(2, Math.floor(result.length / 2));
+  if (images[1] && result.length >= 4 && midIdx !== 1) {
+    result[midIdx] = result[midIdx].trimEnd() + `\n\n![${images[1].alt}](${images[1].url})\n`;
+  }
+
+  return result.join('');
+}
+
 function generateSlug(text: string): string {
   return text
     .toLowerCase()
@@ -339,7 +385,12 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
     {"question": "Long-tail FAQ 3?", "answer": "Detailed answer 3"},
     {"question": "Long-tail FAQ 4?", "answer": "Detailed answer 4"},
     {"question": "Long-tail FAQ 5?", "answer": "Detailed answer 5"}
-  ]
+  ],
+  "imagePrompts": {
+    "thumbnail": "Vivid, photorealistic scene directly related to '${keyword}' — must show real-world visual elements like Indian students, medical campuses, books, stethoscopes, or relevant scenery. NO text, NO infographics, NO charts. Example style: 'Young Indian medical students celebrating with acceptance letters outside a prestigious hospital campus, golden hour light, cinematic photography'",
+    "inline1": "A photorealistic, emotionally engaging scene relevant to the first key topic of this blog. Show people, places or objects — absolutely NO text or overlaid words. Rich colours, realistic lighting.",
+    "inline2": "A photorealistic scene relevant to the main theme of this blog, different from inline1. Could show a student studying, a counselling session, a college campus, or medical equipment. NO text."
+  }
 }`;
 
       const { text } = await callGemini(apiKey, prompt, false);
@@ -356,6 +407,36 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
       }
 
       const slug = generateSlug(parsed.title || keyword);
+      const seed = simpleHash(parsed.title || keyword);
+
+      // Build image URLs from AI-generated prompts using Pollinations (Flux model)
+      const imgPrompts: { thumbnail?: string; inline1?: string; inline2?: string } =
+        parsed.imagePrompts || {};
+
+      const thumbnailPrompt =
+        imgPrompts.thumbnail ||
+        `Indian medical students studying together near a prestigious hospital campus, cinematic photography, warm light, no text`;
+
+      const inline1Prompt =
+        imgPrompts.inline1 ||
+        `Indian students reviewing NEET counselling documents with a counsellor, photorealistic, no text`;
+
+      const inline2Prompt =
+        imgPrompts.inline2 ||
+        `Modern medical college campus in India, aerial view, golden hour, photorealistic, no text`;
+
+      const thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
+      const inline1Url   = pollinationsUrl(inline1Prompt,   1200, 800, seed + 1);
+      const inline2Url   = pollinationsUrl(inline2Prompt,   1200, 800, seed + 2);
+
+      // Embed inline images into the markdown content
+      const contentWithImages = insertInlineImages(
+        parsed.content || '',
+        [
+          { url: inline1Url, alt: `${parsed.title} — visual guide` },
+          { url: inline2Url, alt: `NEET counselling — expert guidance` },
+        ],
+      );
 
       return NextResponse.json({
         success: true,
@@ -369,7 +450,8 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
           keywords: parsed.keywords || [],
           category: parsed.category || 'Guides',
           tags: parsed.tags || [],
-          content: parsed.content || '',
+          content: contentWithImages,
+          featuredImage: thumbnailUrl,
           faqs: parsed.faqs || [],
           sourcesUsed: brief.sourcesFound || [],
         },

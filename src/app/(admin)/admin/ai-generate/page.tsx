@@ -25,6 +25,7 @@ interface GeneratedBlog {
   category: string;
   tags: string[];
   content: string;
+  featuredImage?: string;
   faqs: Array<{ question: string; answer: string }>;
   sourcesUsed: Array<{ uri: string; title: string }>;
 }
@@ -604,6 +605,23 @@ export default function AIGeneratePage() {
 
             {/* Meta sidebar */}
             <div className="space-y-4">
+              {blog.featuredImage && (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                  <div className="px-4 pt-4 pb-2">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">🖼️ Generated Thumbnail</p>
+                  </div>
+                  <img
+                    src={blog.featuredImage}
+                    alt="Generated thumbnail"
+                    className="w-full object-cover max-h-48"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <div className="px-4 py-2">
+                    <p className="text-[10px] text-gray-600 truncate">{blog.featuredImage}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
                 <h3 className="text-sm font-bold text-white">SEO Meta</h3>
                 <div>
