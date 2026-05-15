@@ -27,15 +27,25 @@ export async function GET(req: Request) {
   });
 }
 
-function page(title: string, message: string, success: boolean): string {
-  const color = success ? '#dc2626' : '#6b7280';
-  const icon = success ? '🗑️' : '⚠️';
-  return `<!DOCTYPE html><html><head><title>${title}</title></head>
-<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f3f4f6;">
-  <div style="text-align:center;max-width:400px;padding:32px;">
-    <p style="font-size:40px;">${icon}</p>
-    <h1 style="font-size:22px;color:${color};">${title}</h1>
-    <p style="color:#6b7280;">${message}</p>
+function page(title: string, message: string, rejected: boolean): string {
+  const bg = rejected ? '#fef2f2' : '#f3f4f6';
+  const iconBg = rejected ? '#fee2e2' : '#f3f4f6';
+  const iconColor = rejected ? '#dc2626' : '#6b7280';
+  const icon = rejected ? '✕' : '⚠️';
+  const heading = rejected ? '#dc2626' : '#374151';
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:${bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+  <div style="text-align:center;max-width:480px;padding:40px 32px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+    <div style="width:72px;height:72px;background:${iconBg};border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:32px;font-weight:700;color:${iconColor};line-height:72px;">${icon}</div>
+    <h1 style="margin:0 0 10px;font-size:26px;color:${heading};font-weight:700;">${title}</h1>
+    <p style="margin:0;font-size:14px;color:#6b7280;">${message}</p>
   </div>
-</body></html>`;
+</body>
+</html>`;
 }
