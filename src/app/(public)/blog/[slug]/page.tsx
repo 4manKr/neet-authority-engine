@@ -210,32 +210,27 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
         </div>
       </div>
 
+      {/* Floating share bar — fixed bottom-right, visible throughout reading */}
+      <ShareButtons url={blogUrl} title={blog.title} />
+
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
           {/* TOC Sidebar */}
           <aside className="hidden lg:block">
             <TableOfContents items={toc} />
-            <div className="mt-8">
-              <ShareButtons url={blogUrl} title={blog.title} />
-            </div>
           </aside>
 
           {/* Article Body */}
           <article className="lg:col-span-3">
             {/* Featured Image */}
             {blog.featuredImage && (
-              <img src={blog.featuredImage} alt={blog.title} className="w-full rounded-2xl mb-8 shadow-sm" />
+              <img src={blog.featuredImage} alt={blog.title} className="w-full rounded-2xl mb-10 shadow-md object-cover max-h-[480px]" />
             )}
-
-            {/* Mobile Share */}
-            <div className="lg:hidden mb-6">
-              <ShareButtons url={blogUrl} title={blog.title} />
-            </div>
 
             {/* Blog Content */}
             <div
-              className="prose prose-lg prose-blue max-w-none prose-headings:scroll-mt-24 prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b prose-h2:border-gray-100 prose-h2:pb-3 prose-h2:mt-10 prose-h3:text-xl prose-a:text-blue-600 prose-img:rounded-xl prose-table:border prose-th:bg-blue-50 prose-th:px-4 prose-th:py-2 prose-td:px-4 prose-td:py-2"
+              className="article-prose prose prose-lg prose-blue max-w-none"
               dangerouslySetInnerHTML={{ __html: html }}
             />
 
