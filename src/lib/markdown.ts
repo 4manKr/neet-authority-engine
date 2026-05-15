@@ -44,14 +44,33 @@ export function extractTOC(markdown: string): TOCItem[] {
 }
 
 /**
- * Adds id attributes to headings in HTML for anchor linking
+ * Adds id attributes to headings in HTML for anchor linking.
+ * Also promotes a leading plain <p> that looks like a title (no sentence-ending
+ * punctuation, under 200 chars) to an <h1> so the AI-generated title is styled.
  */
 export function addHeadingIds(html: string): string {
-  return html.replace(
-    /<h([2-4])>(.*?)<\/h[2-4]>/gi,
+  let result = html;
+
+  // If the content starts with a plain <p> that looks like a heading title
+  // (short text, no trailing period/question/exclamation mark), promote to <h1>
+  result = result.replace(
+    /^(\s*)<p>([^<]{10,180})<\/p>/,
+    (match, ws, text) => {
+      const trimmed = text.trim();
+      // Only promote if it doesn't end with sentence punctuation
+      if (!/[.!?]$/.test(trimmed)) {
+        const id = trimmed.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+        return `${ws}<h1 id="${id}">${trimmed}</h1>`;
+      }
+      return match;
+    }
+  );
+
+  return result.replace(
+    /<h([1-4])>(.*?)<\/h[1-4]>/gi,
     (_, level: string, text: string) => {
       const id = text
-        .replace(/<[^>]*>/g, '') // strip inner HTML tags
+        .replace(/<[^>]*>/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
