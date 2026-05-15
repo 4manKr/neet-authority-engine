@@ -12,10 +12,12 @@ export interface TOCItem {
  */
 export function parseMarkdown(markdown: string): string {
   const rawHtml = marked.parse(markdown, { async: false }) as string;
-  return DOMPurify.sanitize(rawHtml, {
+  const sanitized = DOMPurify.sanitize(rawHtml, {
     ADD_TAGS: ['iframe'],
     ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target'],
   });
+  // Wrap bare tables in a scrollable container for mobile
+  return sanitized.replace(/<table/g, '<div class="table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
 }
 
 /**

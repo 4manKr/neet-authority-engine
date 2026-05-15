@@ -169,13 +169,13 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
   const serializedRelated = JSON.parse(JSON.stringify(relatedBlogs));
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white pb-20">
       <JsonLd data={articleSchema} />
       {faqSchema && <JsonLd data={faqSchema} />}
 
       {/* Header */}
       <div className="bg-gradient-to-br from-slate-50 to-blue-50 border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <Breadcrumbs items={[
             { label: 'Home', href: '/' },
             { label: 'Blog', href: '/blog' },
@@ -183,12 +183,12 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
             { label: blog.title },
           ]} />
 
-          <div className="mt-6">
+          <div className="mt-4 sm:mt-6">
             <CategoryBadge category={blog.category} clickable />
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mt-3 mb-4 leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mt-3 mb-4 leading-tight">
               {blog.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
               <span>By <strong className="text-gray-700">{blog.author}</strong></span>
               {date && <span>📅 {date}</span>}
               <span>⏱️ {readTime} min read</span>
@@ -197,7 +197,7 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
 
             {/* Tags */}
             {blog.tags && blog.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-4">
                 {blog.tags.map((tag: string) => (
                   <Link key={tag} href={`/blog?tag=${encodeURIComponent(tag)}`}
                     className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
@@ -210,44 +210,48 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
         </div>
       </div>
 
-      {/* Floating share bar — fixed bottom-right, visible throughout reading */}
+      {/* Floating share bar */}
       <ShareButtons url={blogUrl} title={blog.title} />
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
-          {/* TOC Sidebar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-10">
+          {/* TOC Sidebar — desktop only */}
           <aside className="hidden lg:block">
             <TableOfContents items={toc} />
           </aside>
 
           {/* Article Body */}
-          <article className="lg:col-span-3">
+          <article className="lg:col-span-3 min-w-0">
             {/* Featured Image */}
             {blog.featuredImage && (
-              <img src={blog.featuredImage} alt={blog.title} className="w-full rounded-2xl mb-10 shadow-md object-cover max-h-[480px]" />
+              <img
+                src={blog.featuredImage}
+                alt={blog.title}
+                className="w-full rounded-xl sm:rounded-2xl mb-6 sm:mb-10 shadow-md object-cover max-h-[300px] sm:max-h-[480px]"
+              />
             )}
 
             {/* Blog Content */}
             <div
-              className="article-prose prose prose-lg prose-blue max-w-none"
+              className="article-prose prose prose-blue max-w-none"
               dangerouslySetInnerHTML={{ __html: html }}
             />
 
             {/* FAQ Section */}
             {blog.faqs && blog.faqs.length > 0 && (
-              <section className="mt-12 pt-8 border-t border-gray-100">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">❓ Frequently Asked Questions</h2>
-                <div className="space-y-4">
+              <section className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-100">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">❓ Frequently Asked Questions</h2>
+                <div className="space-y-3 sm:space-y-4">
                   {blog.faqs.map((faq: any, i: number) => (
                     <details key={i} className="group bg-gray-50 rounded-xl border border-gray-100">
-                      <summary className="cursor-pointer p-5 font-semibold text-gray-900 flex items-center justify-between list-none">
+                      <summary className="cursor-pointer p-4 sm:p-5 font-semibold text-gray-900 flex items-center justify-between list-none text-sm sm:text-base">
                         {faq.question}
-                        <svg className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </summary>
-                      <div className="px-5 pb-5 text-gray-600 leading-relaxed">{faq.answer}</div>
+                      <div className="px-4 sm:px-5 pb-4 sm:pb-5 text-gray-600 leading-relaxed text-sm sm:text-base">{faq.answer}</div>
                     </details>
                   ))}
                 </div>
@@ -255,24 +259,27 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
             )}
 
             {/* Lead CTA */}
-            <div className="mt-12 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white text-center">
-              <h3 className="text-2xl font-bold mb-3">Need Personalized NEET Counselling?</h3>
-              <p className="text-blue-100 mb-6 max-w-lg mx-auto">Talk to our experts and get a personalized college admission strategy based on your rank.</p>
-              <Link href="/free-neet-counselling" className="inline-block px-8 py-3.5 bg-white text-blue-700 font-bold rounded-xl hover:bg-blue-50 transition-colors shadow-lg">
+            <div className="mt-8 sm:mt-12 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-white text-center">
+              <h3 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3">Need Personalized NEET Counselling?</h3>
+              <p className="text-blue-100 mb-4 sm:mb-6 max-w-lg mx-auto text-sm sm:text-base">Talk to our experts and get a personalized college admission strategy based on your rank.</p>
+              <Link
+                href="/free-neet-counselling"
+                className="inline-block px-6 sm:px-8 py-3 sm:py-3.5 bg-white text-blue-700 font-bold rounded-xl hover:bg-blue-50 transition-colors shadow-lg text-sm sm:text-base"
+              >
                 Get Free Consultation →
               </Link>
             </div>
 
             {/* Newsletter */}
-            <div className="mt-10">
+            <div className="mt-6 sm:mt-10">
               <NewsletterForm variant="card" />
             </div>
 
             {/* Related Posts */}
             {serializedRelated.length > 0 && (
-              <section className="mt-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">📚 Related Articles</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <section className="mt-8 sm:mt-12">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">📚 Related Articles</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                   {serializedRelated.map((blog: any) => (
                     <BlogCard key={blog._id} {...blog} publishedAt={blog.publishedAt} />
                   ))}

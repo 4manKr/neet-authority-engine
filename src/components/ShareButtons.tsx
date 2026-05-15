@@ -10,8 +10,10 @@ interface ShareButtonsProps {
 export function ShareButtons({ url, title }: ShareButtonsProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
 
   useEffect(() => {
+    setCanNativeShare(typeof navigator !== 'undefined' && !!navigator.share);
     const onScroll = () => setVisible(window.scrollY > 320);
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
@@ -34,6 +36,12 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const nativeShare = async () => {
+    try {
+      await navigator.share({ title, url });
+    } catch {}
   };
 
   const buttons = [
@@ -70,55 +78,69 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
   ];
 
   return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex flex-col items-center gap-2 transition-all duration-300 ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6 pointer-events-none'
-      }`}
-    >
-      {/* Share label */}
-      <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-3 py-1 shadow-md">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Share</span>
-      </div>
-
-      {/* Social buttons */}
-      {buttons.map((btn) => (
-        <a
-          key={btn.label}
-          href={btn.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Share on ${btn.label}`}
-          className={`w-11 h-11 flex items-center justify-center rounded-full text-white shadow-lg ${btn.className} transition-all duration-200 hover:scale-110 active:scale-95`}
-        >
-          {btn.icon}
-        </a>
-      ))}
-
-      {/* Copy link */}
-      <button
-        onClick={copyLink}
-        aria-label="Copy link"
-        className={`w-11 h-11 flex items-center justify-center rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95 ${
-          copied ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+    <>
+      {/* Desktop floating share bar — hidden on mobile */}
+      <div
+        className={`hidden sm:flex fixed bottom-[4.5rem] right-4 z-50 flex-col items-center gap-2 transition-all duration-300 ${
+          visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6 pointer-events-none'
         }`}
       >
-        {copied ? (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-          </svg>
-        )}
-      </button>
+        <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-3 py-1 shadow-md">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Share</span>
+        </div>
 
-      {/* Copied toast */}
-      <div className={`absolute right-14 bottom-0 bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap transition-all duration-200 ${
-        copied ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none'
-      }`}>
-        Link copied!
+        {buttons.map((btn) => (
+          <a
+            key={btn.label}
+            href={btn.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Share on ${btn.label}`}
+            className={`w-10 h-10 flex items-center justify-center rounded-full text-white shadow-lg ${btn.className} transition-all duration-200 hover:scale-110 active:scale-95`}
+          >
+            {btn.icon}
+          </a>
+        ))}
+
+        <button
+          onClick={copyLink}
+          aria-label="Copy link"
+          className={`w-10 h-10 flex items-center justify-center rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95 ${
+            copied ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          {copied ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          )}
+        </button>
+
+        <div className={`absolute right-12 bottom-0 bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap transition-all duration-200 ${
+          copied ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none'
+        }`}>
+          Link copied!
+        </div>
       </div>
-    </div>
+
+      {/* Mobile native share button — shown only on small screens after scroll */}
+      {canNativeShare && (
+        <button
+          onClick={nativeShare}
+          aria-label="Share article"
+          className={`sm:hidden fixed bottom-[4.5rem] right-4 z-50 w-12 h-12 flex items-center justify-center rounded-full bg-blue-600 text-white shadow-xl transition-all duration-300 ${
+            visible ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+        </button>
+      )}
+    </>
   );
 }

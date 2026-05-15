@@ -11,7 +11,7 @@ export function WhatsAppButton() {
       href="https://wa.me/919876543210?text=Hi%2C%20I%20need%20help%20with%20NEET%20counselling"
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 left-5 z-50 w-14 h-14 bg-green-500 text-white rounded-full shadow-lg shadow-green-500/30 flex items-center justify-center hover:bg-green-600 hover:scale-110 transition-all duration-300 group"
+      className="fixed bottom-[4.5rem] left-4 z-50 w-14 h-14 bg-green-500 text-white rounded-full shadow-lg shadow-green-500/30 flex items-center justify-center hover:bg-green-600 hover:scale-110 transition-all duration-300 group"
       aria-label="Chat on WhatsApp"
     >
       <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
