@@ -156,8 +156,7 @@ html {
 }
 
 .article-prose p {
-  text-align: justify;
-  text-justify: inter-word;
+  text-align: left;
   line-height: 1.85;
   margin-bottom: 1.4rem;
   color: #374151;
