@@ -98,10 +98,45 @@ async function callGemini(
   return { text, groundingChunks };
 }
 
-function parseJson(text: string) {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON in response');
-  return JSON.parse(match[0]);
+function parseJson(text: string): any {
+  // Strip markdown fences if present
+  let s = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+
+  // Grab outermost { … }
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('No JSON object found in response');
+  s = s.slice(start, end + 1);
+
+  // Attempt 1: direct parse
+  try { return JSON.parse(s); } catch { /* fall through */ }
+
+  // Attempt 2: fix \' (most common Gemini invalid escape)
+  try { return JSON.parse(s.replace(/\\'/g, "'")); } catch { /* fall through */ }
+
+  // Attempt 3: remove ALL invalid escape sequences
+  // Valid JSON escape chars after \: " \ / b f n r t u
+  // \uXXXX needs exactly 4 hex digits — fix bad \u too
+  try {
+    const fixed = s
+      .replace(/\\u(?![0-9a-fA-F]{4})/g, 'u')   // \u not followed by 4 hex → plain u
+      .replace(/\\(?!["\\/bfnrtu])/g, '');        // any other invalid \X → remove backslash
+    return JSON.parse(fixed);
+  } catch { /* fall through */ }
+
+  // Attempt 4: escape unescaped literal newlines/tabs inside string values
+  try {
+    const fixed = s
+      .replace(/\\'/g, "'")
+      .replace(/\\(?!["\\/bfnrtu])/g, '')
+      // Escape raw control characters that appear inside string values
+      .replace(/(?<=":[\s]*"[^"]*)\n/g, '\\n')
+      .replace(/(?<=":[\s]*"[^"]*)\r/g, '\\r')
+      .replace(/(?<=":[\s]*"[^"]*)\t/g, '\\t');
+    return JSON.parse(fixed);
+  } catch { /* fall through */ }
+
+  throw new Error('AI returned malformed JSON that could not be repaired. Please regenerate.');
 }
 
 // Parse either multipart/form-data (research with files) or application/json (generate)
@@ -288,7 +323,7 @@ ${brief.uploadedFileCount ? `\n(Note: ${brief.uploadedFileCount} file(s) were an
 ${answersText ? `\nADMIN'S ANSWERS TO CLARIFYING QUESTIONS:\n${answersText}\n` : ''}
 ${urlContext ? `\nREFERENCE SOURCES PROVIDED BY ADMIN:\n\n${urlContext}\n` : ''}
 
-Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no markdown fences):
+Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no markdown fences, no trailing commas, no single-quoted strings, no invalid escape sequences — use \\n for newlines inside strings):
 {
   "title": "SEO-optimized title (50-65 characters, include the keyword naturally)",
   "metaTitle": "Meta title (50-60 characters)",
