@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 
 export const maxDuration = 60;
 
+const SUPPORTED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf',
+  'text/plain', 'text/csv',
+]);
+
 function generateSlug(text: string): string {
   return text
     .toLowerCase()
@@ -39,11 +45,31 @@ async function fetchUrlText(url: string): Promise<{ url: string; text: string; t
   }
 }
 
-// useSearch=true  → research mode: enables Google Search grounding, free-form text response
-// useSearch=false → generate mode: no grounding (brief has findings), forces JSON via responseMimeType
-async function callGemini(apiKey: string, prompt: string, useSearch: boolean) {
+interface FilePart {
+  mimeType: string;
+  data: string; // base64
+  name: string;
+}
+
+// Build Gemini request body. When fileParts are supplied the request is multimodal.
+// useSearch=true  → research mode: Google Search grounding, free-form response
+// useSearch=false → generate mode: no grounding, forced JSON via responseMimeType
+async function callGemini(
+  apiKey: string,
+  prompt: string,
+  useSearch: boolean,
+  fileParts: FilePart[] = [],
+) {
+  const parts: any[] = [{ text: prompt }];
+
+  for (const fp of fileParts) {
+    parts.push({ inlineData: { mimeType: fp.mimeType, data: fp.data } });
+    // Label each file so AI knows what it's looking at
+    parts.unshift({ text: `[Uploaded file: ${fp.name} (${fp.mimeType})]` });
+  }
+
   const body: any = {
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [{ parts }],
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: 16384,
@@ -53,9 +79,10 @@ async function callGemini(apiKey: string, prompt: string, useSearch: boolean) {
   if (useSearch) {
     body.tools = [{ google_search: {} }];
   }
+
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
   );
   if (!res.ok) {
     const err = await res.text();
@@ -77,9 +104,58 @@ function parseJson(text: string) {
   return JSON.parse(match[0]);
 }
 
+// Parse either multipart/form-data (research with files) or application/json (generate)
+async function parseRequest(req: Request): Promise<{
+  keyword: string;
+  urls: string[];
+  mode: string;
+  brief: any;
+  answers: Record<string, string>;
+  fileParts: FilePart[];
+}> {
+  const ct = req.headers.get('content-type') || '';
+
+  if (ct.includes('multipart/form-data')) {
+    const fd = await req.formData();
+    const keyword = (fd.get('keyword') as string) || '';
+    const urls: string[] = JSON.parse((fd.get('urls') as string) || '[]');
+    const mode = (fd.get('mode') as string) || 'research';
+    const brief = fd.get('brief') ? JSON.parse(fd.get('brief') as string) : null;
+    const answers: Record<string, string> = fd.get('answers')
+      ? JSON.parse(fd.get('answers') as string)
+      : {};
+
+    const uploadedFiles = fd.getAll('files') as File[];
+    const fileParts: FilePart[] = [];
+
+    for (const file of uploadedFiles) {
+      if (!file.size) continue;
+      if (file.size > 15 * 1024 * 1024) continue; // skip files > 15 MB
+
+      const mimeType = file.type || 'application/octet-stream';
+      if (!SUPPORTED_MIME_TYPES.has(mimeType)) continue;
+
+      const buf = await file.arrayBuffer();
+      const data = Buffer.from(buf).toString('base64');
+      fileParts.push({ mimeType, data, name: file.name });
+    }
+
+    return { keyword, urls, mode, brief, answers, fileParts };
+  }
+
+  // Plain JSON (generate mode or research without files)
+  const body = await req.json();
+  return {
+    keyword: body.keyword || '',
+    urls: body.urls || [],
+    mode: body.mode || 'research',
+    brief: body.brief || null,
+    answers: body.answers || {},
+    fileParts: [],
+  };
+}
+
 // POST /api/blog/generate
-// mode = "research" → search web + read URLs → return brief + clarifying questions
-// mode = "generate" → use brief + answers → return full blog post
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -87,22 +163,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'GEMINI_API_KEY is not configured.' }, { status: 500 });
     }
 
-    const body = await req.json();
-    const { keyword, urls = [], mode = 'research', brief, answers = {} } = body;
+    const { keyword, urls, mode, brief, answers, fileParts } = await parseRequest(req);
 
     if (!keyword?.trim()) {
       return NextResponse.json({ error: 'keyword is required' }, { status: 400 });
     }
 
     // Fetch content from admin-provided URLs in parallel
-    const urlContents = urls.length > 0
-      ? await Promise.all((urls as string[]).filter(Boolean).map(fetchUrlText))
-      : [];
+    const urlContents =
+      urls.length > 0
+        ? await Promise.all((urls as string[]).filter(Boolean).map(fetchUrlText))
+        : [];
 
     const urlContext = urlContents
       .filter((u) => u.text)
       .map((u) => `--- Source: ${u.title} (${u.url}) ---\n${u.text}`)
       .join('\n\n');
+
+    const fileNames = fileParts.map((f) => f.name).join(', ');
+    const fileNote = fileParts.length
+      ? `\nThe admin has also uploaded ${fileParts.length} file(s) for you to read and extract relevant information from: ${fileNames}. Carefully read each uploaded file and use its content as primary source material.`
+      : '';
 
     // ── RESEARCH MODE ──────────────────────────────────────────────────────────
     if (mode === 'research') {
@@ -114,10 +195,9 @@ Use Google Search to find:
 - The most recent news, announcements, and updates (2025–2026)
 - Official sources (NTA, MCC, state counselling authorities)
 - Current trends, statistics, and data
-
-${urlContext ? `The admin has also provided these reference sources to use:\n\n${urlContext}\n` : ''}
-
-Based on your research, return a JSON object (no markdown, just raw JSON) with this EXACT structure:
+${fileNote}
+${urlContext ? `\nThe admin has also provided these reference URLs to use:\n\n${urlContext}\n` : ''}
+Based on your research (and the uploaded files if any), return a JSON object (no markdown, just raw JSON) with this EXACT structure:
 {
   "recentFindings": [
     "Specific, factual finding with date/source if available",
@@ -153,13 +233,16 @@ Based on your research, return a JSON object (no markdown, just raw JSON) with t
 
 Questions should help refine: target audience, specific state or quota focus, tone, specific data points to include.`;
 
-      const { text, groundingChunks } = await callGemini(apiKey, prompt, true);
+      const { text, groundingChunks } = await callGemini(apiKey, prompt, true, fileParts);
 
       let parsed;
       try {
         parsed = parseJson(text);
       } catch {
-        return NextResponse.json({ error: 'AI returned unexpected research format. Please try again.' }, { status: 500 });
+        return NextResponse.json(
+          { error: 'AI returned unexpected research format. Please try again.' },
+          { status: 500 },
+        );
       }
 
       return NextResponse.json({
@@ -172,6 +255,7 @@ Questions should help refine: target audience, specific state or quota focus, to
           keyTopics: parsed.keyTopics || [],
           questions: parsed.questions || [],
           sourcesFound: groundingChunks.slice(0, 6),
+          uploadedFileCount: fileParts.length,
         },
       });
     }
@@ -200,11 +284,9 @@ RESEARCH BRIEF:
 - Key topics to cover: ${(brief.keyTopics || []).join(', ')}
 - Recent findings to incorporate:
 ${(brief.recentFindings || []).map((f: string) => `  • ${f}`).join('\n')}
-
-${answersText ? `ADMIN'S ANSWERS TO CLARIFYING QUESTIONS:\n${answersText}\n` : ''}
-${urlContext ? `REFERENCE SOURCES PROVIDED BY ADMIN:\n\n${urlContext}\n` : ''}
-
-Use Google Search to verify facts and find any additional recent data before writing.
+${brief.uploadedFileCount ? `\n(Note: ${brief.uploadedFileCount} file(s) were analyzed during research and their content is reflected in the findings above.)` : ''}
+${answersText ? `\nADMIN'S ANSWERS TO CLARIFYING QUESTIONS:\n${answersText}\n` : ''}
+${urlContext ? `\nREFERENCE SOURCES PROVIDED BY ADMIN:\n\n${urlContext}\n` : ''}
 
 Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no markdown fences):
 {
@@ -225,8 +307,6 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
   ]
 }`;
 
-      // useSearch=false: research brief already has findings; forcing JSON via responseMimeType
-      // is far more reliable for a 1500+ word generation than search grounding.
       const { text } = await callGemini(apiKey, prompt, false);
 
       let parsed;
@@ -236,7 +316,7 @@ Generate a comprehensive, SEO-optimized blog post. Return ONLY valid JSON (no ma
         console.error('JSON parse failed. Raw response snippet:', text.slice(0, 500));
         return NextResponse.json(
           { error: `AI returned malformed JSON: ${parseErr.message}. Please try again.` },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
