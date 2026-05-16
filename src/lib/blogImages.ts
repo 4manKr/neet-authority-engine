@@ -29,11 +29,14 @@ export function pollinationsUrl(prompt: string, width: number, height: number, s
   );
 }
 
-// Save DALL-E base64 image to MongoDB and return a permanent serving URL
-async function uploadToMongoDB(b64: string, folder: string): Promise<string> {
+// Fetch image from URL and store in MongoDB, return a permanent serving URL
+async function uploadToMongoDB(imageUrl: string, folder: string): Promise<string> {
   await dbConnect();
-  const buffer = Buffer.from(b64, 'base64');
-  const doc = await Image.create({ data: buffer, contentType: 'image/png', folder });
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) throw new Error(`Failed to fetch DALL-E image: ${imgRes.status}`);
+  const buffer = Buffer.from(await imgRes.arrayBuffer());
+  const contentType = imgRes.headers.get('content-type') || 'image/png';
+  const doc = await Image.create({ data: buffer, contentType, folder });
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info').replace(/\/$/, '');
   return `${siteUrl}/api/images/${doc._id}`;
 }
@@ -53,7 +56,6 @@ async function generateDalleImage(
       n: 1,
       size,
       quality: 'hd',
-      response_format: 'b64_json',
     }),
   });
   if (!res.ok) {
@@ -61,9 +63,9 @@ async function generateDalleImage(
     throw new Error(`DALL-E 3 error ${res.status}: ${err.slice(0, 200)}`);
   }
   const data = await res.json();
-  const b64 = data.data?.[0]?.b64_json as string;
-  if (!b64) throw new Error('DALL-E 3 returned no image data');
-  return uploadToMongoDB(b64, folder);
+  const imageUrl = data.data?.[0]?.url as string;
+  if (!imageUrl) throw new Error('DALL-E 3 returned no image URL');
+  return uploadToMongoDB(imageUrl, folder);
 }
 
 export function insertInlineImages(
