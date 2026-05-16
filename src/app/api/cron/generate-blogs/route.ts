@@ -99,6 +99,24 @@ function generateSlug(text: string): string {
     .replace(/^-|-$/g, '').substring(0, 80);
 }
 
+// ── Compute max word-overlap similarity (0–100%) against recent titles ──────
+function topicSimilarity(topic: string, recentTitles: string[]): number {
+  if (!recentTitles.length) return 0;
+  const stopWords = new Set(['the','a','an','and','or','for','of','in','to','is','are','with','how','what','your','you','will','can','do','on','at','by','from','about','this','that','these','those','was','were','has','have','had','be','been','being','its','it','our','we']);
+  const words = (str: string) =>
+    new Set(str.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w)));
+
+  const topicWords = words(topic);
+  let max = 0;
+  for (const title of recentTitles) {
+    const titleWords = words(title);
+    const intersection = [...topicWords].filter(w => titleWords.has(w)).length;
+    const union = new Set([...topicWords, ...titleWords]).size;
+    if (union > 0) max = Math.max(max, Math.round((intersection / union) * 100));
+  }
+  return max;
+}
+
 // ── Fetch recently published/pending blog titles (last 30 days) ────────────
 async function getRecentTitles(): Promise<string[]> {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -246,20 +264,26 @@ export async function GET(req: Request) {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info').replace(/\/$/, '');
 
   try {
-    // 1. Fetch today's trending headlines
-    const headlines = await fetchTrendingHeadlines();
+    // 1. Kick off DB connection and RSS fetch in parallel so cold start doesn't block
+    const [headlines] = await Promise.all([
+      fetchTrendingHeadlines(),
+      dbConnect(),
+    ]);
 
-    // 2. Fetch recently generated titles to avoid repetition
-    const recentTitles = await getRecentTitles();
+    // 2. Fetch recently generated titles to avoid repetition (DB is warm now)
+    const recentTitles = await Promise.race([
+      getRecentTitles(),
+      new Promise<string[]>((resolve) => setTimeout(() => resolve([]), 4000)),
+    ]);
 
     // 3. Pick 3 fresh topics
     const topics = await pickTopics(headlines, recentTitles, apiKey);
 
     // 4. Generate blogs sequentially (avoid Gemini rate limits)
-    await dbConnect();
-    const savedBlogs: Array<{ title: string; excerpt: string; category: string; token: string }> = [];
+    const savedBlogs: Array<{ title: string; excerpt: string; category: string; token: string; similarity: number }> = [];
 
     for (const topic of topics) {
+      const similarity = topicSimilarity(topic, recentTitles);
       const blogData = await generateBlogForTopic(topic, headlines, apiKey);
       if (!blogData) continue;
 
@@ -284,6 +308,7 @@ export async function GET(req: Request) {
         excerpt: blogData.excerpt,
         category: blogData.category,
         token,
+        similarity,
       });
     }
 
