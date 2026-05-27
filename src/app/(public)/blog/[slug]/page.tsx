@@ -33,7 +33,19 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info';
 
-  const image = blog.ogImage || blog.featuredImage || null;
+  // Resolve og:image — use stored image or fall back to a deterministic Pollinations URL
+  // so every blog always has a valid og:image for social sharing.
+  const storedImage = blog.ogImage || blog.featuredImage || '';
+  const ogImage = storedImage || (() => {
+    // Deterministic seed from blog title
+    let h = 0;
+    for (let i = 0; i < blog.title.length; i++) h = Math.imul(31, h) + blog.title.charCodeAt(i) | 0;
+    const seed = Math.abs(h) % 99991;
+    const prompt = encodeURIComponent(
+      `Professional Indian medical student in clean white coat, NEET counselling, modern hospital background, ${blog.category}, sharp focus, studio lighting, no text, no watermarks`
+    );
+    return `https://image.pollinations.ai/prompt/${prompt}?width=1200&height=630&nologo=true&model=flux-realism&seed=${seed}`;
+  })();
 
   return {
     title: blog.metaTitle || blog.title,
@@ -45,13 +57,13 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
       type: 'article',
       publishedTime: blog.publishedAt?.toISOString(),
       authors: [blog.author],
-      images: image ? [{ url: image, width: 1536, height: 1024, alt: blog.title }] : [],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: blog.title }],
     },
     twitter: {
       card: 'summary_large_image',
       title: blog.metaTitle || blog.title,
       description: blog.metaDescription || blog.excerpt,
-      ...(image ? { images: [image] } : {}),
+      images: [ogImage],
     },
     alternates: {
       canonical: blog.canonicalUrl || `${siteUrl}/blog/${slug}`,
