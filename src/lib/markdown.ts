@@ -11,7 +11,7 @@ export interface TOCItem {
  * Parses markdown content and returns sanitized HTML
  */
 export function parseMarkdown(markdown: string): string {
-  const rawHtml = marked.parse(markdown, { async: false }) as string;
+  const rawHtml = marked.parse(markdown) as string;
   const sanitized = DOMPurify.sanitize(rawHtml, {
     ADD_TAGS: ['iframe'],
     ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target'],
