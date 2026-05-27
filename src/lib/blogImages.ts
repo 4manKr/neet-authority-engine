@@ -86,30 +86,55 @@ export interface ImagePrompts {
   inline2?: string;
 }
 
-const DEFAULT_THUMBNAIL =
-  'Confident young Indian woman doctor in a pristine white lab coat and stethoscope, smiling at camera, ' +
-  'modern hospital corridor background softly blurred, bright studio-quality lighting, professional headshot';
+// Dynamic fallbacks — built from blog title + category so every blog gets
+// contextually relevant images even when AI-generated prompts are absent.
+function buildFallbackPrompts(title: string, category: string) {
+  const topic = title.replace(/[^a-zA-Z0-9\s]/g, '').slice(0, 60);
+  const cat = category || 'NEET counselling';
 
-const DEFAULT_INLINE1 =
-  'Flat-lay top-down view of a clean white desk with NEET study materials — open medical textbook showing ' +
-  'anatomy diagrams, stethoscope, a notepad with neat handwriting, pen and green plant, bright natural window light, ' +
-  'minimal aesthetic, product photography style';
+  return {
+    thumbnail:
+      `Professional indoor photograph for a blog about "${topic}". ` +
+      `A focused Indian medical student or counsellor at a clean modern desk, ` +
+      `${cat} documents or laptop visible, warm studio lighting, shallow depth of field, ` +
+      `no text overlays, no outdoor scenes, no crowds, photorealistic`,
 
-const DEFAULT_INLINE2 =
-  'Modern bright medical college counselling office interior, a senior Indian counsellor gesturing at a laptop ' +
-  'screen showing college rankings, two students listening attentively across the desk, large window with natural ' +
-  'daylight, tidy professional environment, candid documentary photography';
+    inline1:
+      `Top-down flat-lay on a white desk: items directly related to ${cat} — ` +
+      `NEET forms, a pen, organised notes about "${topic}", ` +
+      `a laptop showing a college ranking table, small plant, bright natural window light, ` +
+      `minimal clean aesthetic, no text on papers, product photography`,
+
+    inline2:
+      `Indian medical college counselling session: a senior counsellor pointing at a laptop screen ` +
+      `showing information about ${cat}, one attentive student across the desk, ` +
+      `modern bright office with large window, natural daylight, ` +
+      `professional candid photography, no text visible, photorealistic`,
+  };
+}
+
+// Reject a stored prompt if it looks like an instruction rather than a real visual description.
+function isValidPrompt(p: string | undefined): p is string {
+  if (!p || p.trim().length < 20) return false;
+  const lower = p.toLowerCase();
+  // Discard meta-instructions Gemini sometimes outputs instead of real prompts
+  if (lower.startsWith('write') || lower.startsWith('generate') || lower.startsWith('create an image')) return false;
+  return true;
+}
 
 export async function generateBlogImages(
   imagePrompts: ImagePrompts,
   title: string,
   content: string,
   slug: string,
+  category = 'NEET counselling',
 ): Promise<{ featuredImage: string; content: string }> {
   const seed = simpleHash(title);
-  const thumbnailPrompt = imagePrompts.thumbnail || DEFAULT_THUMBNAIL;
-  const inline1Prompt   = imagePrompts.inline1   || DEFAULT_INLINE1;
-  const inline2Prompt   = imagePrompts.inline2   || DEFAULT_INLINE2;
+  const fallback = buildFallbackPrompts(title, category);
+
+  const thumbnailPrompt = isValidPrompt(imagePrompts.thumbnail) ? imagePrompts.thumbnail : fallback.thumbnail;
+  const inline1Prompt   = isValidPrompt(imagePrompts.inline1)   ? imagePrompts.inline1   : fallback.inline1;
+  const inline2Prompt   = isValidPrompt(imagePrompts.inline2)   ? imagePrompts.inline2   : fallback.inline2;
 
   const openaiKey = process.env.OPENAI_API_KEY;
 
