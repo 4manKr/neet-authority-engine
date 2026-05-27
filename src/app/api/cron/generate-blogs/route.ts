@@ -94,9 +94,18 @@ function parseJsonArray(text: string): string[] {
 }
 
 function generateSlug(text: string): string {
-  return text.toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
-    .replace(/^-|-$/g, '').substring(0, 80);
+  const stopWords = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','with','your','how','what','why','when','is','are','will','can','do','about','guide','complete','comprehensive','everything','know','need','all','top','best','vs']);
+  const words = text.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 1 && !stopWords.has(w));
+
+  let slug = '';
+  for (const w of words) {
+    if ((slug + '-' + w).length > 50) break;
+    slug = slug ? `${slug}-${w}` : w;
+  }
+  return slug || text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').substring(0, 50);
 }
 
 // ── Compute max word-overlap similarity (0–100%) against recent titles ──────

@@ -33,6 +33,8 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info';
 
+  const image = blog.ogImage || blog.featuredImage || null;
+
   return {
     title: blog.metaTitle || blog.title,
     description: blog.metaDescription || blog.excerpt,
@@ -43,7 +45,13 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
       type: 'article',
       publishedTime: blog.publishedAt?.toISOString(),
       authors: [blog.author],
-      images: blog.ogImage || blog.featuredImage ? [{ url: blog.ogImage || blog.featuredImage || '' }] : [],
+      images: image ? [{ url: image, width: 1536, height: 1024, alt: blog.title }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: blog.metaTitle || blog.title,
+      description: blog.metaDescription || blog.excerpt,
+      ...(image ? { images: [image] } : {}),
     },
     alternates: {
       canonical: blog.canonicalUrl || `${siteUrl}/blog/${slug}`,
