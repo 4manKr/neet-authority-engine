@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import dbConnect from '@/lib/db/mongoose';
 import { Blog } from '@/lib/db/models/Blog';
-import { parseMarkdown } from '@/lib/markdown';
 import type { Metadata } from 'next';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,13 +23,6 @@ export default async function BlogPreviewPage({ params }: Props) {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info').replace(/\/$/, '');
   const approveUrl = `${siteUrl}/api/blog/approve?token=${token}`;
   const rejectUrl  = `${siteUrl}/api/blog/reject?token=${token}`;
-
-  let html = '';
-  try {
-    html = parseMarkdown(blog.content ?? '');
-  } catch {
-    html = `<pre style="white-space:pre-wrap">${(blog.content ?? '').replace(/</g, '&lt;')}</pre>`;
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,7 +85,7 @@ export default async function BlogPreviewPage({ params }: Props) {
 
         {/* Article */}
         <article className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-8 sm:px-10 sm:py-12">
-          <div className="article-prose" dangerouslySetInnerHTML={{ __html: html }} />
+          <MarkdownRenderer content={blog.content ?? ''} />
 
           {/* FAQs */}
           {blog.faqs && blog.faqs.length > 0 && (
