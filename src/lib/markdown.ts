@@ -18,6 +18,8 @@ function slugify(text: string): string {
 
 function inlineMarkdown(text: string): string {
   return text
+    // Images (must be before links to avoid ![alt](url) matching as link)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:16px 0;" />')
     // Bold + italic
     .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
     // Bold
@@ -26,10 +28,8 @@ function inlineMarkdown(text: string): string {
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     // Inline code
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    // Images
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:16px 0;" />');
+    // Links (not preceded by !)
+    .replace(/(?<!<img[^>]*)(?<!!)\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 }
 
 export function parseMarkdown(markdown: string): string {
