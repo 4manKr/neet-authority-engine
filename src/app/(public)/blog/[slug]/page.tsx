@@ -248,7 +248,7 @@ export default async function BlogDetailPage({ params }: BlogPageProps) {
               <img
                 src={blog.featuredImage}
                 alt={blog.title}
-                className="w-full rounded-xl sm:rounded-2xl mb-6 sm:mb-10 shadow-md object-cover max-h-[300px] sm:max-h-[480px]"
+                className="w-full rounded-xl sm:rounded-2xl mb-6 sm:mb-10 shadow-md object-cover object-center h-[220px] sm:h-[360px] lg:h-[460px]"
               />
             )}
 

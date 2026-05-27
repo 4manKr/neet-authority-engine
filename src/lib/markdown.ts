@@ -19,7 +19,7 @@ function slugify(text: string): string {
 function inlineMarkdown(text: string): string {
   return text
     // Images (must be before links to avoid ![alt](url) matching as link)
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:16px 0;" />')
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" loading="lazy" decoding="async" />')
     // Bold + italic
     .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
     // Bold

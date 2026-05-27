@@ -251,11 +251,26 @@ html {
 }
 
 .article-prose img {
+  display: block;
+  width: 100%;
+  height: 260px;           /* consistent banner height on mobile */
+  object-fit: cover;       /* crops neatly without stretching */
+  object-position: center;
   border-radius: 0.75rem;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  margin: 1.6rem auto;
-  max-width: 100%;
-  height: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  margin: 1.8rem auto;
+}
+
+@media (min-width: 640px) {
+  .article-prose img {
+    height: 340px;         /* slightly taller on tablet */
+  }
+}
+
+@media (min-width: 1024px) {
+  .article-prose img {
+    height: 400px;         /* full desktop height */
+  }
 }
 
 /* Tables — mobile scrollable */
