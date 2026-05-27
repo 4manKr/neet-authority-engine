@@ -24,7 +24,12 @@ export default async function BlogPreviewPage({ params }: Props) {
   const approveUrl = `${siteUrl}/api/blog/approve?token=${token}`;
   const rejectUrl  = `${siteUrl}/api/blog/reject?token=${token}`;
 
-  const html = await parseMarkdown(blog.content);
+  let html = '';
+  try {
+    html = parseMarkdown(blog.content ?? '');
+  } catch {
+    html = `<pre style="white-space:pre-wrap">${(blog.content ?? '').replace(/</g, '&lt;')}</pre>`;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
