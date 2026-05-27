@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/generate-blogs",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/generate-images",
+      "schedule": "30 2 * * *"
     }
   ]
 }
