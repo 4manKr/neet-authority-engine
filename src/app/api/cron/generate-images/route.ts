@@ -3,8 +3,8 @@ import dbConnect from '@/lib/db/mongoose';
 import { Blog } from '@/lib/db/models/Blog';
 import { generateBlogImages } from '@/lib/blogImages';
 
-// 1 DALL-E call per blog (thumbnail only) ≈ 15–20 s each.
-// 3 blogs processed in parallel ≈ 20 s total — well within Vercel Hobby's 60 s limit.
+// All 3 images per blog (thumbnail + 2 inline) use DALL-E, run in parallel → ~20 s/blog.
+// 2 blogs processed sequentially → ~40 s total, within Vercel Hobby's 60 s cap.
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
@@ -24,29 +24,29 @@ export async function GET(req: Request) {
       $or: [{ featuredImage: { $exists: false } }, { featuredImage: { $in: [null, ''] } }],
     },
     { title: 1, slug: 1, content: 1, imagePrompts: 1 },
-  ).limit(3).lean();
+  ).limit(2).lean();
 
   if (blogs.length === 0) {
     return NextResponse.json({ success: true, message: 'No blogs need images' });
   }
 
-  // Process all 3 in parallel — each does 1 DALL-E call so total is ~20 s
-  const results = await Promise.all(
-    blogs.map(async (blog) => {
-      try {
-        const { featuredImage, content } = await generateBlogImages(
-          blog.imagePrompts || {},
-          blog.title,
-          blog.content,
-          blog.slug,
-        );
-        await Blog.findByIdAndUpdate(blog._id, { featuredImage, content });
-        return `✓ ${blog.title}`;
-      } catch (err: any) {
-        return `✗ ${blog.title}: ${err.message}`;
-      }
-    }),
-  );
+  // Process blogs sequentially so the 3 parallel DALL-E calls per blog don't
+  // collide with the next blog's calls. Each blog takes ~20 s → 2 blogs ≈ 40 s total.
+  const results: string[] = [];
+  for (const blog of blogs) {
+    try {
+      const { featuredImage, content } = await generateBlogImages(
+        blog.imagePrompts || {},
+        blog.title,
+        blog.content,
+        blog.slug,
+      );
+      await Blog.findByIdAndUpdate(blog._id, { featuredImage, content });
+      results.push(`✓ ${blog.title}`);
+    } catch (err: any) {
+      results.push(`✗ ${blog.title}: ${err.message}`);
+    }
+  }
 
   return NextResponse.json({ success: true, processed: results });
 }
