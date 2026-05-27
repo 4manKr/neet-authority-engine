@@ -43,7 +43,7 @@ async function generateDalleImage(
       prompt: (prompt + ' IMPORTANT: any text visible in the image must be perfectly spelled, accurate, and legible. No random characters, gibberish, or misspelled words anywhere.').slice(0, 4000),
       n: 1,
       size: size === '1792x1024' ? '1536x1024' : '1024x1024',
-      quality: 'high',
+      quality: 'medium', // 'medium' ≈ $0.06 vs 'high' ≈ $0.50 — good enough for blog thumbnails
     }),
   });
   if (!res.ok) {
@@ -112,22 +112,17 @@ export async function generateBlogImages(
   const inline2Prompt   = imagePrompts.inline2   || DEFAULT_INLINE2;
 
   const openaiKey = process.env.OPENAI_API_KEY;
-  const useDalle = !!openaiKey; // MongoDB is always available, so just need the OpenAI key
 
   let thumbnailUrl: string;
-  let inline1Url: string;
-  let inline2Url: string;
+  // Inline images always use Pollinations (free) — only the featured thumbnail uses DALL-E.
+  // This keeps cost to ~$0.06/blog instead of ~$1.50 for 3 paid images.
+  const inline1Url = pollinationsUrl(inline1Prompt, 1200, 800, seed + 1);
+  const inline2Url = pollinationsUrl(inline2Prompt, 1200, 800, seed + 2);
 
-  if (useDalle) {
-    [thumbnailUrl, inline1Url, inline2Url] = await Promise.all([
-      generateDalleImage(thumbnailPrompt, '1792x1024', `neet-blog/${slug}`, openaiKey!),
-      generateDalleImage(inline1Prompt,   '1792x1024', `neet-blog/${slug}`, openaiKey!),
-      generateDalleImage(inline2Prompt,   '1792x1024', `neet-blog/${slug}`, openaiKey!),
-    ]);
+  if (openaiKey) {
+    thumbnailUrl = await generateDalleImage(thumbnailPrompt, '1792x1024', `neet-blog/${slug}`, openaiKey);
   } else {
     thumbnailUrl = pollinationsUrl(thumbnailPrompt, 1200, 630, seed);
-    inline1Url   = pollinationsUrl(inline1Prompt,   1200, 800, seed + 1);
-    inline2Url   = pollinationsUrl(inline2Prompt,   1200, 800, seed + 2);
   }
 
   const contentWithImages = insertInlineImages(content, [

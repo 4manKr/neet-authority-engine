@@ -3,7 +3,9 @@ import dbConnect from '@/lib/db/mongoose';
 import { Blog } from '@/lib/db/models/Blog';
 import { generateBlogImages } from '@/lib/blogImages';
 
-export const maxDuration = 300;
+// 1 DALL-E call per blog (thumbnail only) ≈ 15–20 s each.
+// 3 blogs processed in parallel ≈ 20 s total — well within Vercel Hobby's 60 s limit.
+export const maxDuration = 60;
 
 export async function GET(req: Request) {
   const auth = req.headers.get('authorization');
@@ -13,9 +15,8 @@ export async function GET(req: Request) {
 
   await dbConnect();
 
-  // Find published blogs that don't have a featured image yet.
-  // $in: [null, ''] also catches documents where the field exists but is empty.
-  // limit(1) keeps total runtime to ~3 DALL-E calls ≈ 45–55 s, within Vercel Hobby's 60 s cap.
+  // Find published auto-generated blogs that don't have a featured image yet.
+  // $in: [null, ''] also catches documents where the field exists but is falsy.
   const blogs = await Blog.find(
     {
       status: 'published',
@@ -23,28 +24,29 @@ export async function GET(req: Request) {
       $or: [{ featuredImage: { $exists: false } }, { featuredImage: { $in: [null, ''] } }],
     },
     { title: 1, slug: 1, content: 1, imagePrompts: 1 },
-  ).limit(1).lean();
+  ).limit(3).lean();
 
   if (blogs.length === 0) {
     return NextResponse.json({ success: true, message: 'No blogs need images' });
   }
 
-  const results: string[] = [];
-
-  for (const blog of blogs) {
-    try {
-      const { featuredImage, content } = await generateBlogImages(
-        blog.imagePrompts || {},
-        blog.title,
-        blog.content,
-        blog.slug,
-      );
-      await Blog.findByIdAndUpdate(blog._id, { featuredImage, content });
-      results.push(`✓ ${blog.title}`);
-    } catch (err: any) {
-      results.push(`✗ ${blog.title}: ${err.message}`);
-    }
-  }
+  // Process all 3 in parallel — each does 1 DALL-E call so total is ~20 s
+  const results = await Promise.all(
+    blogs.map(async (blog) => {
+      try {
+        const { featuredImage, content } = await generateBlogImages(
+          blog.imagePrompts || {},
+          blog.title,
+          blog.content,
+          blog.slug,
+        );
+        await Blog.findByIdAndUpdate(blog._id, { featuredImage, content });
+        return `✓ ${blog.title}`;
+      } catch (err: any) {
+        return `✗ ${blog.title}: ${err.message}`;
+      }
+    }),
+  );
 
   return NextResponse.json({ success: true, processed: results });
 }
