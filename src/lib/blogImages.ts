@@ -40,7 +40,7 @@ async function generateDalleImage(
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiKey}` },
     body: JSON.stringify({
       model: 'gpt-image-1',
-      prompt: (prompt + ' IMPORTANT: absolutely no text, no words, no letters, no numbers, no captions, no labels, no watermarks anywhere in the image.').slice(0, 4000),
+      prompt: (prompt + ' IMPORTANT: any text visible in the image must be perfectly spelled, accurate, and legible. No random characters, gibberish, or misspelled words anywhere.').slice(0, 4000),
       n: 1,
       size: size === '1792x1024' ? '1536x1024' : '1024x1024',
       quality: 'high',
