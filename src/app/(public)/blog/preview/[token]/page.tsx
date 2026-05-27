@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import dbConnect from '@/lib/db/mongoose';
 import { Blog } from '@/lib/db/models/Blog';
+import { parseMarkdown } from '@/lib/markdown';
 import type { Metadata } from 'next';
-import { MarkdownRenderer } from './MarkdownRenderer';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +24,13 @@ export default async function BlogPreviewPage({ params }: Props) {
   const approveUrl = `${siteUrl}/api/blog/approve?token=${token}`;
   const rejectUrl  = `${siteUrl}/api/blog/reject?token=${token}`;
 
+  let html = '';
+  try {
+    html = parseMarkdown(blog.content ?? '');
+  } catch {
+    html = `<pre style="white-space:pre-wrap">${(blog.content ?? '').replace(/</g, '&lt;')}</pre>`;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Approval bar */}
@@ -38,16 +45,10 @@ export default async function BlogPreviewPage({ params }: Props) {
             </p>
           </div>
           <div className="flex gap-3 flex-shrink-0">
-            <a
-              href={approveUrl}
-              className="px-5 py-2.5 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-            >
+            <a href={approveUrl} className="px-5 py-2.5 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 transition-colors shadow-sm">
               ✅ Approve &amp; Publish
             </a>
-            <a
-              href={rejectUrl}
-              className="px-5 py-2.5 bg-white text-red-600 border border-red-300 text-sm font-semibold rounded-lg hover:bg-red-50 transition-colors"
-            >
+            <a href={rejectUrl} className="px-5 py-2.5 bg-white text-red-600 border border-red-300 text-sm font-semibold rounded-lg hover:bg-red-50 transition-colors">
               ✕ Reject
             </a>
           </div>
@@ -56,7 +57,6 @@ export default async function BlogPreviewPage({ params }: Props) {
 
       {/* Blog content */}
       <div className="max-w-4xl mx-auto px-4 py-10">
-        {/* Meta info */}
         <div className="mb-6 p-4 bg-white rounded-xl border border-gray-200 text-sm text-gray-600 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Category</p>
@@ -78,16 +78,12 @@ export default async function BlogPreviewPage({ params }: Props) {
 
         <div className="mb-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Meta Description</p>
-          <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
-            {blog.metaDescription}
-          </p>
+          <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-100">{blog.metaDescription}</p>
         </div>
 
-        {/* Article */}
         <article className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-8 sm:px-10 sm:py-12">
-          <MarkdownRenderer content={blog.content ?? ''} />
+          <div className="article-prose" dangerouslySetInnerHTML={{ __html: html }} />
 
-          {/* FAQs */}
           {blog.faqs && blog.faqs.length > 0 && (
             <div className="mt-10 pt-8 border-t border-gray-100">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
@@ -103,18 +99,11 @@ export default async function BlogPreviewPage({ params }: Props) {
           )}
         </article>
 
-        {/* Bottom action bar */}
         <div className="mt-8 flex gap-4 justify-center">
-          <a
-            href={approveUrl}
-            className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md text-lg"
-          >
+          <a href={approveUrl} className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md text-lg">
             ✅ Approve &amp; Publish
           </a>
-          <a
-            href={rejectUrl}
-            className="px-8 py-3 bg-white text-red-600 border-2 border-red-300 font-semibold rounded-xl hover:bg-red-50 transition-colors text-lg"
-          >
+          <a href={rejectUrl} className="px-8 py-3 bg-white text-red-600 border-2 border-red-300 font-semibold rounded-xl hover:bg-red-50 transition-colors text-lg">
             ✕ Reject
           </a>
         </div>
