@@ -4,7 +4,8 @@ import { Blog } from '@/lib/db/models/Blog';
 import { generateBlogImages } from '@/lib/blogImages';
 
 // All 3 images per blog (thumbnail + 2 inline) use DALL-E, run in parallel → ~20 s/blog.
-// 2 blogs processed sequentially → ~40 s total, within Vercel Hobby's 60 s cap.
+// 1 blog per run to stay reliably within Vercel Hobby's function timeout.
+// Images for newly approved blogs are now handled by after() in the approve route.
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
@@ -24,7 +25,7 @@ export async function GET(req: Request) {
       $or: [{ featuredImage: { $exists: false } }, { featuredImage: { $in: [null, ''] } }],
     },
     { title: 1, slug: 1, content: 1, imagePrompts: 1, category: 1 },
-  ).limit(2).lean();
+  ).limit(1).lean();
 
   if (blogs.length === 0) {
     return NextResponse.json({ success: true, message: 'No blogs need images' });
