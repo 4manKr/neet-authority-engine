@@ -195,6 +195,7 @@ ${newsContext}
 WRITING RULES:
 - Write in second person ("you", "your") — speak directly to the student or parent
 - Start with an empathetic, relatable intro (e.g. "If you're wondering about...", "One of the most common questions we hear is...")
+- DO NOT start with any salutation or greeting like "My dear...", "Dear student...", "Hello..." — jump straight into the content
 - Use simple, jargon-free language. Explain any technical terms briefly
 - Focus on PRACTICAL guidance — what should the student actually DO, what should they watch out for, what decisions do they need to make
 - DO NOT start with "Today, NTA announced..." or any news-style opening
