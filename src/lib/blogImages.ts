@@ -1,7 +1,6 @@
 // Shared blog image generation — used by generate route (images mode) and approve route
 
 import dbConnect from '@/lib/db/mongoose';
-import { Image } from '@/lib/db/models/Image';
 
 function simpleHash(str: string): number {
   let h = 0;
@@ -29,17 +28,6 @@ export function pollinationsUrl(prompt: string, width: number, height: number, s
   );
 }
 
-// Fetch image from URL and store in MongoDB, return a permanent serving URL
-async function uploadToMongoDB(imageUrl: string, folder: string): Promise<string> {
-  await dbConnect();
-  const imgRes = await fetch(imageUrl);
-  if (!imgRes.ok) throw new Error(`Failed to fetch DALL-E image: ${imgRes.status}`);
-  const buffer = Buffer.from(await imgRes.arrayBuffer());
-  const contentType = imgRes.headers.get('content-type') || 'image/png';
-  const doc = await Image.create({ data: buffer, contentType, folder });
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info').replace(/\/$/, '');
-  return `${siteUrl}/api/images/${doc._id}`;
-}
 
 async function generateDalleImage(
   prompt: string,
@@ -51,21 +39,27 @@ async function generateDalleImage(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiKey}` },
     body: JSON.stringify({
-      model: 'dall-e-3',
+      model: 'gpt-image-1',
       prompt: prompt.slice(0, 4000),
       n: 1,
-      size,
-      quality: 'hd',
+      size: size === '1792x1024' ? '1536x1024' : '1024x1024',
+      quality: 'high',
     }),
   });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`DALL-E 3 error ${res.status}: ${err.slice(0, 200)}`);
+    throw new Error(`Image generation error ${res.status}: ${err.slice(0, 200)}`);
   }
   const data = await res.json();
-  const imageUrl = data.data?.[0]?.url as string;
-  if (!imageUrl) throw new Error('DALL-E 3 returned no image URL');
-  return uploadToMongoDB(imageUrl, folder);
+  // gpt-image-1 returns b64_json
+  const b64 = data.data?.[0]?.b64_json as string;
+  if (!b64) throw new Error('Image generation returned no data');
+  const buffer = Buffer.from(b64, 'base64');
+  await dbConnect();
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info').replace(/\/$/, '');
+  const { Image } = await import('@/lib/db/models/Image');
+  const doc = await Image.create({ data: buffer, contentType: 'image/png', folder });
+  return `${siteUrl}/api/images/${doc._id}`;
 }
 
 export function insertInlineImages(
