@@ -2,7 +2,11 @@ import type { MetadataRoute } from 'next';
 import dbConnect from '@/lib/db/mongoose';
 import { Blog } from '@/lib/db/models/Blog';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info';
+// Always regenerate from DB — never serve a stale cached sitemap to Google
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://neetcounselling.info').replace(/\/$/, '');
 
 // Valid slug: lowercase letters, digits, hyphens only — no spaces or special chars
 const VALID_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
