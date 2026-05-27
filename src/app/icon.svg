@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Dark blue background with rounded corners -->
+  <rect width="32" height="32" rx="7" fill="#1e3a5f"/>
+  <!-- Orange accent bar at bottom -->
+  <rect x="0" y="26" width="32" height="6" rx="0" fill="#f97316"/>
+  <rect x="0" y="26" width="32" height="6" rx="7" fill="#f97316"/>
+  <!-- N letter in white -->
+  <text
+    x="16"
+    y="22"
+    font-family="Arial, sans-serif"
+    font-weight="900"
+    font-size="20"
+    fill="#ffffff"
+    text-anchor="middle"
+    dominant-baseline="auto"
+    letter-spacing="-0.5"
+  >N</text>
+</svg>
